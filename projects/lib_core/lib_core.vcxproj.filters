@@ -1,0 +1,210 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source">
+      <UniqueIdentifier>{d5103e6f-b066-4cff-837a-edd628e3ec40}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="BaseHeaders">
+      <UniqueIdentifier>{4b469b04-0deb-43e8-b19b-b77ad2405b18}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Image and Sequence">
+      <UniqueIdentifier>{33a7c550-7831-4546-ba8a-8bcfe1a5f1a2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\Threading">
+      <UniqueIdentifier>{2c84b01f-49a2-405d-8f63-5f18aa074483}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\System">
+      <UniqueIdentifier>{9a391f28-f641-47c0-a92f-db3644110fb8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source\PixelOps">
+      <UniqueIdentifier>{74a2616b-1241-49f6-9df7-0f8919e3b0a3}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="source\xCommon.h">
+      <Filter>BaseHeaders</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xCompiler.h">
+      <Filter>BaseHeaders</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xLicense.h">
+      <Filter>BaseHeaders</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xSmallOps.h">
+      <Filter>BaseHeaders</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xLanguage.h">
+      <Filter>BaseHeaders</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xConstants.h">
+      <Filter>BaseHeaders</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xType.h">
+      <Filter>BaseHeaders</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xColorSpace.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xBayer.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xSequence.h">
+      <Filter>Source\Image and Sequence</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xToDo.h">
+      <Filter>BaseHeaders</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xEnums.h">
+      <Filter>BaseHeaders</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xCfg.h">
+      <Filter>Source\System</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xSys.h">
+      <Filter>Source\System</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xFile.h">
+      <Filter>Source\System</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xRing.h">
+      <Filter>Source\Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xThreadPool.h">
+      <Filter>Source\Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xEvent.h">
+      <Filter>Source\Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xPacked.h">
+      <Filter>Source\Image and Sequence</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xSemaphore.h">
+      <Filter>Source\Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xString.h">
+      <Filter>Source\System</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xBarier.h">
+      <Filter>Source\Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xMemmory.h">
+      <Filter>BaseHeaders</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xConfiguration.h">
+      <Filter>BaseHeaders</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xMemmory.h">
+      <Filter>BaseHeaders</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xExtensions.h">
+      <Filter>BaseHeaders</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xThreadPoolShared.h">
+      <Filter>Source\Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xPixelOps.h">
+      <Filter>Source\PixelOps</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xPixelOpsArithm.h">
+      <Filter>Source\PixelOps</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xPriorityQueue.h">
+      <Filter>Source\Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xQueue.h">
+      <Filter>Source\Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xVec.h">
+      <Filter>BaseHeaders</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xPlane.h">
+      <Filter>Source\Image and Sequence</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xPicture.h">
+      <Filter>Source\Image and Sequence</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xChrono.h">
+      <Filter>BaseHeaders</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xPixelOpsSSE.h">
+      <Filter>Source\PixelOps</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xPixelOpsAVX.h">
+      <Filter>Source\PixelOps</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xPixelOpsSTD.h">
+      <Filter>Source\PixelOps</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xBMP.h">
+      <Filter>Source\Image and Sequence</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xByteBuffer.h">
+      <Filter>Source\Image and Sequence</Filter>
+    </ClInclude>
+    <ClInclude Include="source\xResample.h">
+      <Filter>Source</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="source\xColorSpace.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\xBayer.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="source\xSequence.cpp">
+      <Filter>Source\Image and Sequence</Filter>
+    </ClCompile>
+    <ClCompile Include="source\xCfg.cpp">
+      <Filter>Source\System</Filter>
+    </ClCompile>
+    <ClCompile Include="source\xSys.cpp">
+      <Filter>Source\System</Filter>
+    </ClCompile>
+    <ClCompile Include="source\xFile.cpp">
+      <Filter>Source\System</Filter>
+    </ClCompile>
+    <ClCompile Include="source\xThreadPool.cpp">
+      <Filter>Source\Threading</Filter>
+    </ClCompile>
+    <ClCompile Include="source\xPacked.cpp">
+      <Filter>Source\Image and Sequence</Filter>
+    </ClCompile>
+    <ClCompile Include="source\xString.cpp">
+      <Filter>Source\System</Filter>
+    </ClCompile>
+    <ClCompile Include="source\xPixelOps.cpp">
+      <Filter>Source\PixelOps</Filter>
+    </ClCompile>
+    <ClCompile Include="source\xPixelOpsArithms.cpp">
+      <Filter>Source\PixelOps</Filter>
+    </ClCompile>
+    <ClCompile Include="source\xThreadPoolShared.cpp">
+      <Filter>Source\Threading</Filter>
+    </ClCompile>
+    <ClCompile Include="source\xPlane.cpp">
+      <Filter>Source\Image and Sequence</Filter>
+    </ClCompile>
+    <ClCompile Include="source\xPicture.cpp">
+      <Filter>Source\Image and Sequence</Filter>
+    </ClCompile>
+    <ClCompile Include="source\xPixelOpsSSE.cpp">
+      <Filter>Source\PixelOps</Filter>
+    </ClCompile>
+    <ClCompile Include="source\xPixelOpsAVX.cpp">
+      <Filter>Source\PixelOps</Filter>
+    </ClCompile>
+    <ClCompile Include="source\xBMP.cpp">
+      <Filter>Source\Image and Sequence</Filter>
+    </ClCompile>
+    <ClCompile Include="source\xByteBuffer.cpp">
+      <Filter>Source\Image and Sequence</Filter>
+    </ClCompile>
+    <ClCompile Include="source\xResample.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="natvis\lib_core.natvis" />
+  </ItemGroup>
+</Project>
