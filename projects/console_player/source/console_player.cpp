@@ -97,8 +97,8 @@ int main(int argc, char *argv[], char *envp[])
   printf("\n");
 
   //check config
-  if(InputFile == string("")) { fmt::printf(HelpString); return EXIT_FAILURE; }
-  if(!xFile::exist(InputFile)) { fmt::printf("File: " + InputFile + " does not exist!!!\n"); return EXIT_FAILURE; }
+  if(InputFile == string("")) { printf(HelpString); return EXIT_FAILURE; }
+  if(!xFile::exist(InputFile)) { printf("File: %s does not exist!!!\n", InputFile.c_str()); return EXIT_FAILURE; }
 
   xConsolePlayer* ConsolePlayer = new xConsolePlayer; ConsolePlayer->create(&RootSection);
   xConsolePlayer::staticSelf = ConsolePlayer;

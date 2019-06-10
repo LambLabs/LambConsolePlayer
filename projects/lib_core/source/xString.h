@@ -40,9 +40,9 @@
 
 #define FMT_HEADER_ONLY
 #define FMT_USE_WINDOWS_H 0
-#include "fmt/format.h"
-#include "fmt/printf.h"
-#include "fmt/ostream.h"
+//#include "fmt/format.h"
+//#include "fmt/printf.h"
+//#include "fmt/ostream.h"
 #undef FMT_USE_WINDOWS_H
 #undef FMT_HEADER_ONLY
 
