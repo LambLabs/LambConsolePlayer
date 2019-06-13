@@ -485,7 +485,15 @@ void xConsolePlayer::init()
   m_ConsoleSize = xGetConsoleSize();
   m_OutputSize = xCalcOutputSize();
 
+  if (m_PictureOutRGB != nullptr) { m_PictureOutRGB->destroy(); delete m_PictureOutRGB; };
   m_PictureOutRGB = new xPic<int16>; m_PictureOutRGB->create(m_OutputSize, 0, 8, eImgTp::RGB, CrF_444);
+
+  while (!m_PictureResizeRGBVector.empty())
+  {
+    xPic<int16>* PictureResizeRGB = m_PictureResizeRGBVector.back();
+    m_PictureResizeRGBVector.pop_back();
+    if (PictureResizeRGB != nullptr) { PictureResizeRGB->destroy(); delete PictureResizeRGB; };
+  }
 
   m_ResizeSteps = xLog2((uint32)m_InputSize[0] / m_OutputSize[0]);
   for (int32 i = 0; i < m_ResizeSteps - 1; i++)
