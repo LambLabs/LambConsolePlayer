@@ -59,7 +59,6 @@ console_player.exe -i "TestTest_1920x1080.yuv" -w 1920 -h 1080
 
 ==============================================================================================================
 )AVLIBRAWSTRING";
-
 int main(int argc, char *argv[], char *envp[])
 {
   printf("PUT ConsolePlayer software\n");

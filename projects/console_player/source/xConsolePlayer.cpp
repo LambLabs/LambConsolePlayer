@@ -67,6 +67,19 @@ Arrows - Next/previous frame
 )AVLIBRAWSTRING";
 
 //=============================================================================================================================================================================
+void xConsolePlayer::xPrepareConsole()
+{
+#ifdef WIN32
+#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+  // enable ANSI sequences for windows 10:
+  HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+  DWORD consoleMode;
+  GetConsoleMode(console, &consoleMode);
+  consoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+  SetConsoleMode(console, consoleMode);
+#endif
+}
+//=============================================================================================================================================================================
 void xConsolePlayer::xHideCursor()
 {
 #ifndef WIN32
@@ -474,7 +487,7 @@ void xConsolePlayer::init()
 
   m_PictureOutRGB = new xPic<int16>; m_PictureOutRGB->create(m_OutputSize, 0, 8, eImgTp::RGB, CrF_444);
 
-  int32 m_ResizeSteps = xLog2((uint32)m_InputSize[0] / m_OutputSize[0]);
+  m_ResizeSteps = xLog2((uint32)m_InputSize[0] / m_OutputSize[0]);
   for (int32 i = 0; i < m_ResizeSteps - 1; i++)
   {
     xPic<int16>* PictureResizeRGB = new xPic<int16>; PictureResizeRGB->create(m_InputSize >> (i + 1), 0, m_PictureInRGB->getBitDepth(), eImgTp::RGB, CrF_444);
@@ -490,12 +503,13 @@ void xConsolePlayer::run()
   staticSelf = this;
 #endif
 
+  xPrepareConsole();
   printf(CLEAR_SCREEN SAVE_CURSOR_POSITION); //Clear the screen Save cursor position in memory
   xHideCursor();
 #ifndef WIN32
   signal(SIGWINCH, xConsolePlayer::xStaticResizeSignal);
 #endif
-
+  
   xReadFrame();
   xRescaleFrame();
 

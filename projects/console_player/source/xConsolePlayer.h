@@ -74,6 +74,7 @@ protected:
   void xRescaleFrame();
   void xHideCursor();
   void xShowCursor();
+  void xPrepareConsole();
 #ifdef WIN32
   void xKeyEventProc(KEY_EVENT_RECORD ker);
   void xResizeEventProc(WINDOW_BUFFER_SIZE_RECORD wbsr);
