@@ -57,6 +57,8 @@ template <class XXX> static inline XXX  xClipU8  (XXX x) {return xMax((XXX)0,xMi
 template <class XXX> static inline XXX  xClipS8  (XXX x) {return xMax((XXX)-128,xMin(x,(XXX)127));}
 template <class XXX> static inline XXX  xClipU16 (XXX x) {return xMax((XXX)0,xMin(x,(XXX)65536));}
 template <class XXX> static inline XXX  xClipS16 (XXX x) {return xMax((XXX)-32768,xMin(x,(XXX)32767));}
+template <class XXX> static inline XXX  xClipUF  (XXX x) { return xMax((XXX) 0.0, xMin(x, (XXX)1.0)); } //clip flt to ( 0.0, 1.0)
+template <class XXX> static inline XXX  xClipSF  (XXX x) { return xMax((XXX)-1.0, xMin(x, (XXX)1.0)); } //clip flt to (-1.0, 1.0)
 template <class XXX> static inline XXX  xAutoClip(XXX x, XXX a, XXX b) {return (a<b ? xClip(x,a,b) : xClip(x,b,a));}
 template <class XXX> static inline XXX  xClipMV  (XXX mv) {return xMax(-32768,xMin(mv,32767));}
 
@@ -240,19 +242,23 @@ static inline  int64 xSwapBytes64( int64 Value) { return __builtin_bswap64(Value
 //=============================================================================================================================================================================
 // Byte swap
 //=============================================================================================================================================================================
-#if X_SSE3
-static inline int32 xRoundFloatToInt32(float Float) { return _mm_cvt_ss2si(_mm_set_ss(Float)); }
+#if X_SSE2
+static inline int32 xRoundFloatToInt32 (float  Float) { return _mm_cvtss_si32(_mm_set_ss(Float)); }
+static inline int32 xRoundDoubleToInt32(double Float) { return _mm_cvtsd_si32(_mm_set_sd(Float)); }
 #else
-static inline int32 xRoundFloatToInt32(float Float) { return (int32)(round(Float)); }
+static inline int32 xRoundFloatToInt32 (float  Float) { return (int32)(round(Float)); }
+static inline int32 xRoundDoubleToInt32(double Float) { return (int32)(round(Float)); }
 #endif
-
+template <class XXX> static inline int32 xRoundFltToInt32(XXX Flt);
+template <> inline int32 xRoundFltToInt32(flt32 Flt) { return xRoundFloatToInt32 (Flt); }
+template <> inline int32 xRoundFltToInt32(flt64 Flt) { return xRoundDoubleToInt32(Flt); }
 
 //=============================================================================================================================================================================
 // FourCC and EightCC
 //=============================================================================================================================================================================
 constexpr uint32 xMakeFourCC (char A, char B, char C, char D                                ) { return (((uint32)A)) | (((uint32)B) << 8) | (((uint32)C) << 16) | (((uint32)D) << 24); }
 constexpr uint64 xMakeEightCC(char A, char B, char C, char D, char E, char F, char G, char H) { return (((uint64)A)) | (((uint64)B) << 8) | (((uint64)C) << 16) | (((uint64)D) << 24) | (((uint64)E) << 32) | (((uint64)F) << 40) | (((uint64)G) << 48) | (((uint64)H) << 56); }
-constexpr uint64 xMakeFourCC (const char* T) { return xMakeFourCC (T[0], T[1], T[2], T[3]                        ); }
+constexpr uint32 xMakeFourCC (const char* T) { return xMakeFourCC (T[0], T[1], T[2], T[3]                        ); }
 constexpr uint64 xMakeEightCC(const char* T) { return xMakeEightCC(T[0], T[1], T[2], T[3], T[4], T[5], T[6], T[7]); }
 
 //=============================================================================================================================================================================

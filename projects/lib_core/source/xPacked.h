@@ -37,6 +37,14 @@
 #include <string>
 #include <vector>
 
+#ifdef max
+#undef max
+#endif
+
+#ifdef min
+#undef min
+#endif
+
 namespace AVlib {
 
 //=============================================================================================================================================================================
@@ -49,6 +57,7 @@ class xPacked
 {
 public:
   typedef xPackedTank tCorespondingTank;
+  static const uint32 c_NumberOfComponents = 4;
 
 protected:
   int16       m_Width   [4]; //component width
@@ -62,7 +71,6 @@ protected:
   byte*       m_Buffer;
   int32       m_OriginOffset[4]; //offset to first pixel of component
   
-  std::string m_FourCC;
   eImgTp      m_ImageType;
   ePckTp      m_PackedType;
   eCrF        m_ChromaFormat;  
@@ -152,7 +160,6 @@ public:
   int32       getBitDepth      () { return m_BitDepth[0]; }
   int32       getPackedSize    () { return m_PackedSize; }
   byte*       getPackedBuffer  () { return m_Buffer; }
-  std::string getFourCC        () { return m_FourCC; }
   eImgTp      getImageType     () { return m_ImageType; }
   ePckTp      getPackedType    () { return m_PackedType; }
   eCrF        getChromaFormat  () { return m_ChromaFormat; }
@@ -344,15 +351,32 @@ template <typename PelType> void xPacked::unpackInterleaved(xPic<PelType>* Dst)
   int32  SrcStride = Dst->getStride(CMP_0);
   int32  Width     = Dst->getWidth();
   int32  Height    = Dst->getHeight();
+  int32  Area      = Dst->getArea  (); 
   int32  Margin    = Dst->getMargin();
   int32  BDM       = (Dst->getBitDepth()<=8) ? 1 : 2; //BitDepthMultiplier
 
   eImgTp ImageType = Dst->getImageType();
+
   switch(ImageType)
   {
     case eImgTp::YUV:
     case eImgTp::RGB:
     {
+      if(m_ComponentOrder == eCmpO::YUYV)
+      {
+        PelType* DstPtrLm = Dst->getAddr(CMP_0);
+        PelType* DstPtrCb = Dst->getAddr(CMP_1);
+        PelType* DstPtrCr = Dst->getAddr(CMP_2);
+
+        switch(BDM)
+        {
+          case 1: xPixelOps::ConvertAOS4toSOA3_ABAC(DstPtrLm, DstPtrCb, DstPtrCr, (uint8*)m_Buffer, Area>>1); break;
+          case 2: xPixelOps::ConvertAOS4toSOA3_ABAC(DstPtrLm, DstPtrCb, DstPtrCr, (int16*)m_Buffer, Area>>1); break;
+        }
+        break;
+      }
+      else
+      {
       PelType* DstPtrA   = Dst->getAddr(CMP_0);
       PelType* DstPtrB   = Dst->getAddr(CMP_1);
       PelType* DstPtrC   = Dst->getAddr(CMP_2);
@@ -360,14 +384,15 @@ template <typename PelType> void xPacked::unpackInterleaved(xPic<PelType>* Dst)
       {
         case 1:
           if(Margin>0) { xPixelOps::ConvertAOS4toSOA3(DstPtrA, DstPtrB, DstPtrC, (uint8*)m_Buffer, Width, SrcStride, Width, Height); }
-          else         { xPixelOps::ConvertAOS4toSOA3(DstPtrA, DstPtrB, DstPtrC, (uint8*)m_Buffer, Height*Width); }
+            else         { xPixelOps::ConvertAOS4toSOA3(DstPtrA, DstPtrB, DstPtrC, (uint8*)m_Buffer, Area); }
           break;
         case 2:
           if(Margin>0) { xPixelOps::ConvertAOS4toSOA3(DstPtrA, DstPtrB, DstPtrC, (uint16*)m_Buffer, Width, SrcStride, Width, Height); }
-          else         { xPixelOps::ConvertAOS4toSOA3(DstPtrA, DstPtrB, DstPtrC, (uint16*)m_Buffer, Height*Width); }
+            else         { xPixelOps::ConvertAOS4toSOA3(DstPtrA, DstPtrB, DstPtrC, (uint16*)m_Buffer, Area); }
           break;
       }
       break;
+      }
     }      
     case eImgTp::YUVA:
     case eImgTp::YUVD:
@@ -382,11 +407,11 @@ template <typename PelType> void xPacked::unpackInterleaved(xPic<PelType>* Dst)
       {
         case 1:
           if(Margin>0) { xPixelOps::ConvertAOS4toSOA4(DstPtrA, DstPtrB, DstPtrC, DstPtrD, (uint8*)m_Buffer, Width, SrcStride, Width, Height); }
-          else         { xPixelOps::ConvertAOS4toSOA4(DstPtrA, DstPtrB, DstPtrC, DstPtrD, (uint8*)m_Buffer, Height*Width); }
+          else         { xPixelOps::ConvertAOS4toSOA4(DstPtrA, DstPtrB, DstPtrC, DstPtrD, (uint8*)m_Buffer, Area); }
           break;
         case 2:
           if(Margin>0) { xPixelOps::ConvertAOS4toSOA4(DstPtrA, DstPtrB, DstPtrC, DstPtrD, (uint16*)m_Buffer, Width, SrcStride, Width, Height); }
-          else         { xPixelOps::ConvertAOS4toSOA4(DstPtrA, DstPtrB, DstPtrC, DstPtrD, (uint16*)m_Buffer, Height*Width); }
+          else         { xPixelOps::ConvertAOS4toSOA4(DstPtrA, DstPtrB, DstPtrC, DstPtrD, (uint16*)m_Buffer, Area); }
           break;
       }
       break;

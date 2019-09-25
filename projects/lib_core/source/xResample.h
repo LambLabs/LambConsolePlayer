@@ -268,18 +268,25 @@ template <typename PelType> void xResampleSTD::ResampleD2HVAverage(PelType* rest
 
   const PelType *restrict SrcL0 = Src;
   const PelType *restrict SrcL1 = Src + SrcStride;
-  int32   SrcStrideMul2   = SrcStride<<1;
 
   for(int32 y=0; y<DstHeight; y++)
   {
     for(int32 x=0; x<DstWidth; x++)
     {
-      int32 SrcX = x<<1;
-      IntermType D = ((IntermType)SrcL0[SrcX  ] + (IntermType)SrcL0[SrcX+1] + (IntermType)SrcL1[SrcX  ] + (IntermType)SrcL1[SrcX+1] + 2)>>2;
+      const int32 SrcX = x<<1;
+      if constexpr(std::is_integral_v<PelType>)
+      {
+        IntermType D = ((IntermType)SrcL0[SrcX] + (IntermType)SrcL0[SrcX + 1] + (IntermType)SrcL1[SrcX] + (IntermType)SrcL1[SrcX + 1] + 2) >> 2;
+        Dst[x] = (PelType)D;
+      }
+      else
+      {
+        IntermType D = ((IntermType)SrcL0[SrcX] + (IntermType)SrcL0[SrcX + 1] + (IntermType)SrcL1[SrcX] + (IntermType)SrcL1[SrcX + 1]) / (IntermType)4;
       Dst[x] = (PelType)D;
+      }  
     }
-    SrcL0 += SrcStrideMul2;
-    SrcL1 += SrcStrideMul2;
+    SrcL0 += (SrcStride<<1);
+    SrcL1 += (SrcStride<<1);
     Dst += DstStride;
   }
 }
@@ -291,9 +298,17 @@ template <typename PelType> void xResampleSTD::ResampleD2HAverage(PelType* restr
   {
     for(int32 x=0; x<DstWidth; x++)
     {
-      int32 SrcX = x<<1;
+      const int32 SrcX = x<<1;
+      if constexpr(std::is_integral_v<PelType>)
+      {
       IntermType D = ((IntermType)Src[SrcX  ] + (IntermType)Src[SrcX+1] + 1)>>1;
       Dst[x] = (PelType)D;
+    }
+      else
+      {
+        IntermType D = ((IntermType)Src[SrcX  ] + (IntermType)Src[SrcX+1]) / (IntermType)2;
+        Dst[x] = (PelType)D;
+      }            
     }
     Src += SrcStride;
     Dst += DstStride;
@@ -305,38 +320,50 @@ template <typename PelType> void xResampleSTD::ResampleD2VAverage(PelType* restr
 
   const PelType *restrict SrcL0 = Src;
   const PelType *restrict SrcL1 = Src + SrcStride;
-  int32 SrcStrideMul2   = SrcStride<<1;
 
   for(int32 y=0; y<DstHeight; y++)
   {
     for(int32 x=0; x<DstWidth; x++)
     {
-      int32 SrcX = x<<1;
-      IntermType D = ((IntermType)SrcL0[SrcX  ] + (IntermType)SrcL1[SrcX  ] + 1)>>1;
+      if constexpr(std::is_integral_v<PelType>)
+      {
+        IntermType D = ((IntermType)SrcL0[x] + (IntermType)SrcL1[x] + 1)>>1;
       Dst[x] = (PelType)D;
     }
-    SrcL0 += SrcStrideMul2;
-    SrcL1 += SrcStrideMul2;
+      else
+      {
+        IntermType D = ((IntermType)SrcL0[x] + (IntermType)SrcL1[x]) / (IntermType)2;
+        Dst[x] = (PelType)D;
+      }            
+    }
+    SrcL0 += SrcStride<<1;
+    SrcL1 += SrcStride<<1;
     Dst += DstStride;
   }
 }
 template <typename PelType> void xResampleSTD::ResampleU2HVBilinear(PelType* restrict Dst, const PelType* restrict Src, int32 DstStride, int32 SrcStride, int32 DstWidth, int32 DstHeight)
 {
   using IntermType = std::conditional_t<std::is_integral_v<PelType>, std::conditional_t<sizeof(PelType) <= 4, int32, int64>, PelType>;
-
-  int32 DstStrideMul2 = DstStride<<1;
-
+  
   //left-top sample
   Dst[0] = Src[0];
 
   //top line
   for(int32 x=1; x<DstWidth-1; x+=2)
   {
-    int32      SrcX = x>>1;
+    const int32 SrcX = x>>1;
     IntermType SrcA = Src[SrcX  ];
     IntermType SrcB = Src[SrcX+1];
+    if constexpr(std::is_integral_v<PelType>)
+    {
     Dst[x    ] = (PelType)((((IntermType)177 * SrcA + (IntermType)79 * SrcB) + (IntermType)128) >> 8);
     Dst[x + 1] = (PelType)((((IntermType)177 * SrcB + (IntermType)79 * SrcA) + (IntermType)128) >> 8);
+  }
+    else
+    {
+      Dst[x    ] = (PelType)((((IntermType)177 * SrcA + (IntermType)79 * SrcB)) / (IntermType)256);
+      Dst[x + 1] = (PelType)((((IntermType)177 * SrcB + (IntermType)79 * SrcA)) / (IntermType)256);
+    }
   }
 
   //right-top sample
@@ -355,33 +382,59 @@ template <typename PelType> void xResampleSTD::ResampleU2HVBilinear(PelType* res
     //left collumn
     IntermType SrcA = SrcL0[0];
     IntermType SrcB = SrcL1[0];
+    if constexpr(std::is_integral_v<PelType>)
+    {
     DstL0[0] = (PelType)((((IntermType)177 * SrcA + (IntermType)79 * SrcB) + (IntermType)128) >> 8);
     DstL1[0] = (PelType)((((IntermType)177 * SrcB + (IntermType)79 * SrcA) + (IntermType)128) >> 8);
+    }
+    else
+    {
+      DstL0[0] = (PelType)((((IntermType)177 * SrcA + (IntermType)79 * SrcB)) / (IntermType)256);
+      DstL1[0] = (PelType)((((IntermType)177 * SrcB + (IntermType)79 * SrcA)) / (IntermType)256);
+    }
 
     //center collumns
     for(int32 x=1; x<DstWidth-1; x+=2)
     {
-      int32      SrcX = x>>1;
+      const int32 SrcX = x>>1;
       IntermType SrcA = SrcL0[SrcX  ];
       IntermType SrcB = SrcL0[SrcX+1];
       IntermType SrcC = SrcL1[SrcX  ];
       IntermType SrcD = SrcL1[SrcX+1];
+      if constexpr(std::is_integral_v<PelType>)
+      {
       DstL0[x    ] = (PelType)((((IntermType)116 * SrcA + (IntermType)51 * (SrcB + SrcC) + (IntermType)38 * SrcD) + (IntermType)128) >> 8);
       DstL0[x + 1] = (PelType)((((IntermType)116 * SrcB + (IntermType)51 * (SrcA + SrcD) + (IntermType)38 * SrcC) + (IntermType)128) >> 8);
       DstL1[x    ] = (PelType)((((IntermType)116 * SrcC + (IntermType)51 * (SrcA + SrcD) + (IntermType)38 * SrcB) + (IntermType)128) >> 8);
       DstL1[x + 1] = (PelType)((((IntermType)116 * SrcD + (IntermType)51 * (SrcB + SrcC) + (IntermType)38 * SrcA) + (IntermType)128) >> 8);
     }
+      else
+      {
+        DstL0[x    ] = (PelType)((((IntermType)116 * SrcA + (IntermType)51 * (SrcB + SrcC) + (IntermType)38 * SrcD)) / (IntermType)256);
+        DstL0[x + 1] = (PelType)((((IntermType)116 * SrcB + (IntermType)51 * (SrcA + SrcD) + (IntermType)38 * SrcC)) / (IntermType)256);
+        DstL1[x    ] = (PelType)((((IntermType)116 * SrcC + (IntermType)51 * (SrcA + SrcD) + (IntermType)38 * SrcB)) / (IntermType)256);
+        DstL1[x + 1] = (PelType)((((IntermType)116 * SrcD + (IntermType)51 * (SrcB + SrcC) + (IntermType)38 * SrcA)) / (IntermType)256);
+      }
+    }
 
     //right collumn
     IntermType SrcC = SrcL0[(DstWidth>>1)-1]; 
     IntermType SrcD = SrcL1[(DstWidth>>1)-1];
+    if constexpr(std::is_integral_v<PelType>)
+    {
     DstL0[DstWidth - 1] = (PelType)((((IntermType)177 * SrcC + (IntermType)79 * SrcD) + (IntermType)128) >> 8);
     DstL1[DstWidth - 1] = (PelType)((((IntermType)177 * SrcD + (IntermType)79 * SrcC) + (IntermType)128) >> 8);
+    }
+    else
+    {
+      DstL0[DstWidth - 1] = (PelType)((((IntermType)177 * SrcC + (IntermType)79 * SrcD)) / (IntermType)256);
+      DstL1[DstWidth - 1] = (PelType)((((IntermType)177 * SrcD + (IntermType)79 * SrcC)) / (IntermType)256);
+    }
 
     SrcL0 += SrcStride;
     SrcL1 += SrcStride;      
-    DstL0 += DstStrideMul2;
-    DstL1 += DstStrideMul2;
+    DstL0 += (DstStride<<1);
+    DstL1 += (DstStride<<1);
   }
 
   //left-bottom sample
@@ -390,11 +443,19 @@ template <typename PelType> void xResampleSTD::ResampleU2HVBilinear(PelType* res
   //bottom line
   for(int32 x=1; x<DstWidth-1; x+=2) 
   {
-    int32 SrcX = x>>1;
+    const int32 SrcX = x>>1;
     IntermType SrcA = Src[SrcX  ];
     IntermType SrcB = Src[SrcX+1];
+    if constexpr(std::is_integral_v<PelType>)
+    {
     Dst[x    ] = (PelType)((((IntermType)177 * SrcA + (IntermType)79 * SrcB) + (IntermType)128) >> 8);
     Dst[x + 1] = (PelType)((((IntermType)177 * SrcB + (IntermType)79 * SrcA) + (IntermType)128) >> 8);
+  }
+    else
+    {
+      Dst[x    ] = (PelType)((((IntermType)177 * SrcA + (IntermType)79 * SrcB)) / (IntermType)256);
+      Dst[x + 1] = (PelType)((((IntermType)177 * SrcB + (IntermType)79 * SrcA)) / (IntermType)256);
+    }
   }
 
   //right-bottom sample

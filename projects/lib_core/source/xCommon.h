@@ -1,4 +1,5 @@
 #pragma once
+#define NOMINMAX
 
 #include <cstring>
 #include <cmath>
@@ -13,11 +14,13 @@
 #include "xEnums.h"
 #include "xMemmory.h"
 
+
+//#include "xSys.h"
+
 #include "xSmallOps.h"
 #include "xVec.h"
-#include "xString.h"
-#include "xSys.h"
-#include "xChrono.h"
+//#include "xString.h"
+//#include "xChrono.h"
 
 #include <string>
 #include <vector>
@@ -28,6 +31,7 @@
 #include <fstream>
 #include <iostream>
 #include <cstdarg>
+#include <cstdint>
 
 #ifdef max
 #undef max

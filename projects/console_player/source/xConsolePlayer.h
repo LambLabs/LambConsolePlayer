@@ -64,6 +64,7 @@ protected:
   bool m_Done = false;
   bool m_ShowInfo = true;
   bool m_ShowHelp = false;
+  bool m_RefreshScreen = true;
 protected:
   void xDisplayPicture(xPic<int16>* pic);
   void xDisplayHelp();

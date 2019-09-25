@@ -94,13 +94,13 @@ public:
   class xWorkerTaskFunction : public xWorkerTask
   {
   protected:
-    std::function<void()> m_Function;
+    std::function<void(int32)> m_Function; //void Function(int32 ThreadIdx)
 
   public:
-    xWorkerTaskFunction(uintPtr ClientId, int8 Priority, std::function<void()> Function) : xWorkerTask(ClientId, Priority) { m_Function = Function; m_Status = eTaskStatus::Waiting; }
+    xWorkerTaskFunction(uintPtr ClientId, int8 Priority, std::function<void(int32)> Function) : xWorkerTask(ClientId, Priority) { m_Function = Function; m_Status = eTaskStatus::Waiting; }
 
   protected:
-    void WorkingFunction(int32 ThreadIdx) { m_Function(); }
+    void WorkingFunction(int32 ThreadIdx) { m_Function(ThreadIdx); }
   };
 
 protected:
@@ -166,10 +166,10 @@ public:
   bool isActive() { return m_ThreadPool != nullptr; }
 
   void addWaitingTask(xThreadPoolShared::xWorkerTask* Task);
-  void addWaitingTask(std::function<void()> Function);
+  void addWaitingTask(std::function<void(int32)> Function);
   void waitUntilTasksFinished(int32 NumTasksToWaitFor);
 
-  void executeTask(std::function<void()> Function);
+  void executeTask(std::function<void(int32)> Function);
 
   int32  getNumThreads(               ){ return m_ThreadPool != nullptr ? m_ThreadPool->getNumThreads() : 0; }
   void   setPriority  (int8  Priority ){ m_Priority = Priority; }

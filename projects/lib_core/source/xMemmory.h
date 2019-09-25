@@ -89,7 +89,7 @@ static inline void* xAlignedMallocP(size_t Size, size_t Alignment, size_t Requir
 
 //=============================================================================================================================================================================
 
-template <typename XXX>class xMemMap1D
+template <typename XXX> class xMemMap1D
 {
 protected:
   XXX* const  m_Origin;

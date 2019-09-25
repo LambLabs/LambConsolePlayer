@@ -118,17 +118,17 @@ void xColorSpaceSSE::ConvertDEF2ABC(int16* restrict A, int16* restrict B, int16*
 }
 void xColorSpaceSSE::ConvertRGB2YUV_BT601(int16* restrict Y, int16* restrict U, int16* restrict V, const int16* restrict R, const int16* restrict G, const int16* restrict B, uint32 Area, uint32 BitDepth)
 {
-  const __m128i Y_R    = _mm_set1_epi32(((int32)(65536 * 0.29900 + 0.5)));
-  const __m128i Y_G    = _mm_set1_epi32(((int32)(65536 * 0.58700 + 0.5)));
-  const __m128i Y_B    = _mm_set1_epi32(((int32)(65536 * 0.11400 + 0.5)));
-  const __m128i U_R    = _mm_set1_epi32(((int32)(65536 *-0.16874 + 0.5)));
-  const __m128i U_G    = _mm_set1_epi32(((int32)(65536 *-0.33126 + 0.5)));
-  const __m128i U_B_V_R= _mm_set1_epi32(((int32)(65536 * 0.50000 + 0.5)));
-  const __m128i V_G    = _mm_set1_epi32(((int32)(65536 *-0.41869 + 0.5)));
-  const __m128i V_B    = _mm_set1_epi32(((int32)(65536 *-0.04585 + 0.5)));
+  const __m128i Y_R    = _mm_set1_epi32((int32)(65536 * 0.29900 + 0.5));
+  const __m128i Y_G    = _mm_set1_epi32((int32)(65536 * 0.58700 + 0.5));
+  const __m128i Y_B    = _mm_set1_epi32((int32)(65536 * 0.11400 + 0.5));
+  const __m128i U_R    = _mm_set1_epi32((int32)(65536 *-0.16874 + 0.5));
+  const __m128i U_G    = _mm_set1_epi32((int32)(65536 *-0.33126 + 0.5));
+  const __m128i U_B_V_R= _mm_set1_epi32((int32)(65536 * 0.50000 + 0.5));
+  const __m128i V_G    = _mm_set1_epi32((int32)(65536 *-0.41869 + 0.5));
+  const __m128i V_B    = _mm_set1_epi32((int32)(65536 *-0.04585 + 0.5));
   const __m128i c32768 = _mm_set1_epi32((int32)32768);
-  const int32   Half   = 1<<(BitDepth-1);
-  const __m128i HalfV  = _mm_set1_epi16(Half);
+  const int32   Mid    = (int16)xBitDepth2MidValue(BitDepth);
+  const int32   Max    = (int16)xBitDepth2MaxValue(BitDepth);
 
   int32 Area8 = (int32)((uint32)Area & (uint32)0xFFFFFFF8);
   for(int32 i=0; i<Area8; i+=8)
@@ -160,13 +160,21 @@ void xColorSpaceSSE::ConvertRGB2YUV_BT601(int16* restrict Y, int16* restrict U, 
     __m128i v = _mm_packs_epi32(v_0, v_1);
 
     //add half
-    u = _mm_add_epi16(u, HalfV);
-    v = _mm_add_epi16(v, HalfV);
+    const __m128i MidV = _mm_set1_epi16((int16)Mid);
+    u = _mm_add_epi16(u, MidV);
+    v = _mm_add_epi16(v, MidV);
+
+    //clip
+    const __m128i ZeroV = _mm_setzero_si128();
+    const __m128i MaxV  = _mm_set1_epi16((int16)Max);
+    __m128i cy = _mm_max_epi16(_mm_min_epi16(y, MaxV), ZeroV);
+    __m128i cu = _mm_max_epi16(_mm_min_epi16(u, MaxV), ZeroV);
+    __m128i cv = _mm_max_epi16(_mm_min_epi16(v, MaxV), ZeroV);
 
     //save to output component
-    _mm_store_si128 ((__m128i*)(&(Y[i])),y);
-    _mm_store_si128 ((__m128i*)(&(U[i])),u);
-    _mm_store_si128 ((__m128i*)(&(V[i])),v);
+    _mm_store_si128 ((__m128i*)(&(Y[i])), cy);
+    _mm_store_si128 ((__m128i*)(&(U[i])), cu);
+    _mm_store_si128 ((__m128i*)(&(V[i])), cv);
   }
 
   for(uint32 i=Area8; i<Area; i++)
@@ -177,9 +185,12 @@ void xColorSpaceSSE::ConvertRGB2YUV_BT601(int16* restrict Y, int16* restrict U, 
     int32 y = ((((int32)(65536 * 0.29900 + 0.5))*r + ((int32)(65536 * 0.58700 + 0.5))*g + ((int32)(65536 * 0.11400 + 0.5))*b + 32768)>>16);
     int32 u = ((((int32)(65536 *-0.16874 + 0.5))*r + ((int32)(65536 *-0.33126 + 0.5))*g + ((int32)(65536 * 0.50000 + 0.5))*b + 32768)>>16);
     int32 v = ((((int32)(65536 * 0.50000 + 0.5))*r + ((int32)(65536 *-0.41869 + 0.5))*g + ((int32)(65536 *-0.04585 + 0.5))*b + 32768)>>16);    
-    Y[i] = (int16)y;
-    U[i] = (int16)(u + Half);
-    V[i] = (int16)(v + Half);
+    int32 cy = xClipU(y      , Max);
+    int32 cu = xClipU(u + Mid, Max);
+    int32 cv = xClipU(v + Mid, Max);
+    Y[i] = (int16)cy;
+    U[i] = (int16)cu;
+    V[i] = (int16)cv;
   }
 }
 void xColorSpaceSSE::ConvertYUV2RGB_BT601(int16* restrict R, int16* restrict G, int16* restrict B, const int16* restrict Y, const int16* restrict U, const int16* restrict V, uint32 Area, uint32 BitDepth)
@@ -189,8 +200,10 @@ void xColorSpaceSSE::ConvertYUV2RGB_BT601(int16* restrict R, int16* restrict G, 
   const __m128i G_V    = _mm_set1_epi32(((int32)(65536 *-0.71414 + 0.5)));
   const __m128i B_U    = _mm_set1_epi32(((int32)(65536 * 1.77200 + 0.5)));
   const __m128i c32768 = _mm_set1_epi32((int32)32768);
-  const int32   Half   = 1<<(BitDepth-1);
-  const __m128i HalfV  = _mm_set1_epi16(Half);
+  const int32   Mid    = (int16)xBitDepth2MidValue(BitDepth);
+  const int32   Max    = (int16)xBitDepth2MaxValue(BitDepth);
+  const __m128i MidV   = _mm_set1_epi16((int16)Mid);
+  const __m128i MaxV   = _mm_set1_epi16((int16)Max);
 
   int32 Area8 = (int32)((uint32)Area & (uint32)0xFFFFFFF8);
   for(int32 i=0; i<Area8; i+=8)
@@ -201,8 +214,8 @@ void xColorSpaceSSE::ConvertYUV2RGB_BT601(int16* restrict R, int16* restrict G, 
     __m128i v = _mm_load_si128((__m128i*)(&(V[i])));
 
     //sub half
-    u = _mm_sub_epi16(u, HalfV);
-    v = _mm_sub_epi16(v, HalfV);
+    u = _mm_sub_epi16(u, MidV);
+    v = _mm_sub_epi16(v, MidV);
 
     //conver to int32
     __m128i y_0 = _mm_cvtepi16_epi32(y);
@@ -228,23 +241,32 @@ void xColorSpaceSSE::ConvertYUV2RGB_BT601(int16* restrict R, int16* restrict G, 
     __m128i g = _mm_packs_epi32(g_0, g_1);
     __m128i b = _mm_packs_epi32(b_0, b_1);
 
+    //clip
+    const __m128i ZeroV  = _mm_setzero_si128();
+    __m128i cr = _mm_max_epi16(_mm_min_epi16(r, MaxV), ZeroV);
+    __m128i cg = _mm_max_epi16(_mm_min_epi16(g, MaxV), ZeroV);
+    __m128i cb = _mm_max_epi16(_mm_min_epi16(b, MaxV), ZeroV);
+
     //save to output component
-    _mm_store_si128 ((__m128i*)(&(R[i])),r);
-    _mm_store_si128 ((__m128i*)(&(G[i])),g);
-    _mm_store_si128 ((__m128i*)(&(B[i])),b);
+    _mm_store_si128 ((__m128i*)(&(R[i])), cr);
+    _mm_store_si128 ((__m128i*)(&(G[i])), cg);
+    _mm_store_si128 ((__m128i*)(&(B[i])), cb);
   }
 
   for(uint32 i=Area8; i<Area; i++)
   {
     int32 y = (((int32)Y[i])<<16) + 32768;
-    int32 u = U[i] - Half;
-    int32 v = V[i] - Half;
+    int32 u  = (int32)(U[i]) - Mid;
+    int32 v  = (int32)(V[i]) - Mid;
     int32 r = (                                      + ((int32)(65536 *  1.40200 + 0.5)) * v + y)>>16;
     int32 g = (((int32)(65536 * -0.34414 + 0.5)) * u + ((int32)(65536 * -0.71414 + 0.5)) * v + y)>>16;
     int32 b = (((int32)(65536 *  1.77200 + 0.5)) * u                                         + y)>>16;    
-    R[i] = (int16)r;
-    G[i] = (int16)g;
-    B[i] = (int16)b;
+    int32 cr = xClipU(r, Max);
+    int32 cg = xClipU(g, Max);
+    int32 cb = xClipU(b, Max);
+    R[i] = (int16)cr;
+    G[i] = (int16)cg;
+    B[i] = (int16)cb;
   }
 }
 void xColorSpaceSSE::ConvertRGB2YUV_BT709(int16* restrict Y, int16* restrict U, int16* restrict V, const int16* restrict R, const int16* restrict G, const int16* restrict B, uint32 Area, uint32 BitDepth)
@@ -258,8 +280,8 @@ void xColorSpaceSSE::ConvertRGB2YUV_BT709(int16* restrict Y, int16* restrict U, 
   const __m128i V_G    = _mm_set1_epi32(((int32)(65536 *-0.45415 + 0.5)));
   const __m128i V_B    = _mm_set1_epi32(((int32)(65536 *-0.04585 + 0.5)));
   const __m128i c32768 = _mm_set1_epi32((int32)32768);
-  const int32   Half   = 1<<(BitDepth-1);
-  const __m128i HalfV  = _mm_set1_epi16(Half);
+  const int32   Mid    = (int16)xBitDepth2MidValue(BitDepth);
+  const int32   Max    = (int16)xBitDepth2MaxValue(BitDepth);
 
   int32 Area8 = (int32)((uint32)Area & (uint32)0xFFFFFFF8);
   for(int32 i=0; i<Area8; i+=8)
@@ -291,13 +313,21 @@ void xColorSpaceSSE::ConvertRGB2YUV_BT709(int16* restrict Y, int16* restrict U, 
     __m128i v = _mm_packs_epi32(v_0, v_1);
 
     //add half
-    u = _mm_add_epi16(u, HalfV);
-    v = _mm_add_epi16(v, HalfV);
+    const __m128i MidV = _mm_set1_epi16((int16)Mid);
+    u = _mm_add_epi16(u, MidV);
+    v = _mm_add_epi16(v, MidV);
+
+    //clip
+    const __m128i ZeroV = _mm_setzero_si128();
+    const __m128i MaxV  = _mm_set1_epi16((int16)Max);
+    __m128i cy = _mm_max_epi16(_mm_min_epi16(y, MaxV), ZeroV);
+    __m128i cu = _mm_max_epi16(_mm_min_epi16(u, MaxV), ZeroV);
+    __m128i cv = _mm_max_epi16(_mm_min_epi16(v, MaxV), ZeroV);
 
     //save to output component
-    _mm_store_si128 ((__m128i*)(&(Y[i])),y);
-    _mm_store_si128 ((__m128i*)(&(U[i])),u);
-    _mm_store_si128 ((__m128i*)(&(V[i])),v);
+    _mm_store_si128 ((__m128i*)(&(Y[i])), cy);
+    _mm_store_si128 ((__m128i*)(&(U[i])), cu);
+    _mm_store_si128 ((__m128i*)(&(V[i])), cv);
   }
 
   for(uint32 i=Area8; i<Area; i++)
@@ -308,9 +338,12 @@ void xColorSpaceSSE::ConvertRGB2YUV_BT709(int16* restrict Y, int16* restrict U, 
     int32 y = ((((int32)(65536 * 0.21260 + 0.5))*r + ((int32)(65536 * 0.71520 + 0.5))*g + ((int32)(65536 * 0.07220 + 0.5))*b + 32768)>>16);
     int32 u = ((((int32)(65536 *-0.11457 + 0.5))*r + ((int32)(65536 *-0.38543 + 0.5))*g + ((int32)(65536 * 0.50000 + 0.5))*b + 32768)>>16);
     int32 v = ((((int32)(65536 * 0.50000 + 0.5))*r + ((int32)(65536 *-0.45415 + 0.5))*g + ((int32)(65536 *-0.04585 + 0.5))*b + 32768)>>16);    
-    Y[i] = (int16)y;
-    U[i] = (int16)(u + Half);
-    V[i] = (int16)(v + Half);
+    int32 cy = xClipU(y      , Max);
+    int32 cu = xClipU(u + Mid, Max);
+    int32 cv = xClipU(v + Mid, Max);
+    Y[i] = (int16)cy;
+    U[i] = (int16)cu;
+    V[i] = (int16)cv;
   }
 }
 void xColorSpaceSSE::ConvertYUV2RGB_BT709(int16* restrict R, int16* restrict G, int16* restrict B, const int16* restrict Y, const int16* restrict U, const int16* restrict V, uint32 Area, uint32 BitDepth)
@@ -320,8 +353,10 @@ void xColorSpaceSSE::ConvertYUV2RGB_BT709(int16* restrict R, int16* restrict G, 
   const __m128i G_V    = _mm_set1_epi32(((int32)(65536 *-0.46812 + 0.5)));
   const __m128i B_U    = _mm_set1_epi32(((int32)(65536 * 1.85560 + 0.5)));
   const __m128i c32768 = _mm_set1_epi32((int32)32768);
-  const int32   Half   = 1<<(BitDepth-1);
-  const __m128i HalfV  = _mm_set1_epi16(Half);
+  const int32   Mid    = (int16)xBitDepth2MidValue(BitDepth);
+  const int32   Max    = (int16)xBitDepth2MaxValue(BitDepth);
+  const __m128i MidV   = _mm_set1_epi16((int16)Mid);
+  const __m128i MaxV   = _mm_set1_epi16((int16)Max);
 
   int32 Area8 = (int32)((uint32)Area & (uint32)0xFFFFFFF8);
   for(int32 i=0; i<Area8; i+=8)
@@ -332,8 +367,8 @@ void xColorSpaceSSE::ConvertYUV2RGB_BT709(int16* restrict R, int16* restrict G, 
     __m128i v = _mm_load_si128((__m128i*)(&(V[i])));
 
     //sub half
-    u = _mm_sub_epi16(u, HalfV);
-    v = _mm_sub_epi16(v, HalfV);
+    u = _mm_sub_epi16(u, MidV);
+    v = _mm_sub_epi16(v, MidV);
 
     //conver to int32
     __m128i y_0 = _mm_cvtepi16_epi32(y);
@@ -359,23 +394,32 @@ void xColorSpaceSSE::ConvertYUV2RGB_BT709(int16* restrict R, int16* restrict G, 
     __m128i g = _mm_packs_epi32(g_0, g_1);
     __m128i b = _mm_packs_epi32(b_0, b_1);
 
+    //clip
+    const __m128i ZeroV  = _mm_setzero_si128();
+    __m128i cr = _mm_max_epi16(_mm_min_epi16(r, MaxV), ZeroV);
+    __m128i cg = _mm_max_epi16(_mm_min_epi16(g, MaxV), ZeroV);
+    __m128i cb = _mm_max_epi16(_mm_min_epi16(b, MaxV), ZeroV);
+
     //save to output component
-    _mm_store_si128 ((__m128i*)(&(R[i])),r);
-    _mm_store_si128 ((__m128i*)(&(G[i])),g);
-    _mm_store_si128 ((__m128i*)(&(B[i])),b);
+    _mm_store_si128 ((__m128i*)(&(R[i])), cr);
+    _mm_store_si128 ((__m128i*)(&(G[i])), cg);
+    _mm_store_si128 ((__m128i*)(&(B[i])), cb);
   }
 
   for(uint32 i=Area8; i<Area; i++)
   {
     int32 y = (((int32)Y[i])<<16) + 32768;
-    int32 u = U[i] - Half;
-    int32 v = V[i] - Half;
+    int32 u  = (int32)(U[i]) - Mid;
+    int32 v  = (int32)(V[i]) - Mid;
     int32 r = (                                      + ((int32)(65536 *  1.57480 + 0.5)) * v + y)>>16;
     int32 g = (((int32)(65536 * -0.18732 + 0.5)) * u + ((int32)(65536 * -0.46812 + 0.5)) * v + y)>>16;
     int32 b = (((int32)(65536 *  1.85560 + 0.5)) * u                                         + y)>>16;    
-    R[i] = (int16)r;
-    G[i] = (int16)g;
-    B[i] = (int16)b;
+    int32 cr = xClipU(r, Max);
+    int32 cg = xClipU(g, Max);
+    int32 cb = xClipU(b, Max);
+    R[i] = (int16)cr;
+    G[i] = (int16)cg;
+    B[i] = (int16)cb;
   }
 
 }
@@ -392,8 +436,8 @@ void xColorSpaceSSE::ConvertRGB2YUV_ANY(int16* restrict Y, int16* restrict U, in
   const __m128i V_G    = _mm_set1_epi32(xColorSpaceCoeff<int32>::c_RGB2YCbCr[Index][7]);
   const __m128i V_B    = _mm_set1_epi32(xColorSpaceCoeff<int32>::c_RGB2YCbCr[Index][8]);
   const __m128i c32768 = _mm_set1_epi32((int32)32768);
-  const int32   Half   = 1<<(BitDepth-1);
-  const __m128i HalfV  = _mm_set1_epi16(Half);
+  const int32   Mid    = (int16)xBitDepth2MidValue(BitDepth);
+  const int32   Max    = (int16)xBitDepth2MaxValue(BitDepth);
 
   int32 Area8 = (int32)((uint32)Area & (uint32)0xFFFFFFF8);
   for(int32 i=0; i<Area8; i+=8)
@@ -425,13 +469,21 @@ void xColorSpaceSSE::ConvertRGB2YUV_ANY(int16* restrict Y, int16* restrict U, in
     __m128i v = _mm_packs_epi32(v_0, v_1);
 
     //add half
-    u = _mm_add_epi16(u, HalfV);
-    v = _mm_add_epi16(v, HalfV);
+    const __m128i MidV = _mm_set1_epi16((int16)Mid);
+    u = _mm_add_epi16(u, MidV);
+    v = _mm_add_epi16(v, MidV);
+
+    //clip
+    const __m128i ZeroV = _mm_setzero_si128();
+    const __m128i MaxV  = _mm_set1_epi16((int16)Max);
+    __m128i cy = _mm_max_epi16(_mm_min_epi16(y, MaxV), ZeroV);
+    __m128i cu = _mm_max_epi16(_mm_min_epi16(u, MaxV), ZeroV);
+    __m128i cv = _mm_max_epi16(_mm_min_epi16(v, MaxV), ZeroV);
 
     //save to output component
-    _mm_store_si128 ((__m128i*)(&(Y[i])),y);
-    _mm_store_si128 ((__m128i*)(&(U[i])),u);
-    _mm_store_si128 ((__m128i*)(&(V[i])),v);
+    _mm_store_si128 ((__m128i*)(&(Y[i])), cy);
+    _mm_store_si128 ((__m128i*)(&(U[i])), cu);
+    _mm_store_si128 ((__m128i*)(&(V[i])), cv);
   }
 
   if((uint32)Area8 != (uint32)Area)
@@ -445,7 +497,6 @@ void xColorSpaceSSE::ConvertRGB2YUV_ANY(int16* restrict Y, int16* restrict U, in
     const int32 V_R = xColorSpaceCoeff<int32>::c_RGB2YCbCr[Index][6];
     const int32 V_G = xColorSpaceCoeff<int32>::c_RGB2YCbCr[Index][7];
     const int32 V_B = xColorSpaceCoeff<int32>::c_RGB2YCbCr[Index][8];
-    const int32 Half= 1<<(BitDepth-1);
 
     for(uint32 i=Area8; i<(uint32)Area; i++)
     {
@@ -455,9 +506,12 @@ void xColorSpaceSSE::ConvertRGB2YUV_ANY(int16* restrict Y, int16* restrict U, in
       int32 y = ((Y_R*r + Y_G*g + Y_B*b + 32768)>>16);
       int32 u = ((U_R*r + U_G*g + U_B*b + 32768)>>16);
       int32 v = ((V_R*r + V_G*g + V_B*b + 32768)>>16);    
-      Y[i] = (int16)y;
-      U[i] = (int16)(u + Half);
-      V[i] = (int16)(v + Half);
+      int32 cy = xClipU(y      , Max);
+      int32 cu = xClipU(u + Mid, Max);
+      int32 cv = xClipU(v + Mid, Max);
+      Y[i] = (int16)cy;
+      U[i] = (int16)cu;
+      V[i] = (int16)cv;
     }
   }
 }
@@ -474,8 +528,10 @@ void xColorSpaceSSE::ConvertYUV2RGB_ANY(int16* restrict R, int16* restrict G, in
   const __m128i B_U = _mm_set1_epi32(xColorSpaceCoeff<int32>::c_YCbCr2RGB[Index][7]);
   const __m128i B_V = _mm_set1_epi32(xColorSpaceCoeff<int32>::c_YCbCr2RGB[Index][8]);
   const __m128i c32768 = _mm_set1_epi32((int32)32768);
-  const int32   Half   = 1<<(BitDepth-1);
-  const __m128i HalfV  = _mm_set1_epi16(Half);
+  const int32   Mid    = (int16)xBitDepth2MidValue(BitDepth);
+  const int32   Max    = (int16)xBitDepth2MaxValue(BitDepth);
+  const __m128i MidV   = _mm_set1_epi16((int16)Mid);
+  const __m128i MaxV   = _mm_set1_epi16((int16)Max);
 
   int32 Area8 = (int32)((uint32)Area & (uint32)0xFFFFFFF8);
   for(int32 i=0; i<Area8; i+=8)
@@ -486,8 +542,8 @@ void xColorSpaceSSE::ConvertYUV2RGB_ANY(int16* restrict R, int16* restrict G, in
     __m128i v = _mm_load_si128((__m128i*)(&(V[i])));
 
     //sub half
-    u = _mm_sub_epi16(u, HalfV);
-    v = _mm_sub_epi16(v, HalfV);
+    u = _mm_sub_epi16(u, MidV);
+    v = _mm_sub_epi16(v, MidV);
 
     //conver to int32
     __m128i y_0 = _mm_cvtepi16_epi32(y);
@@ -510,10 +566,16 @@ void xColorSpaceSSE::ConvertYUV2RGB_ANY(int16* restrict R, int16* restrict G, in
     __m128i g = _mm_packs_epi32(g_0, g_1);
     __m128i b = _mm_packs_epi32(b_0, b_1);
 
+    //clip
+    const __m128i ZeroV  = _mm_setzero_si128();
+    __m128i cr = _mm_max_epi16(_mm_min_epi16(r, MaxV), ZeroV);
+    __m128i cg = _mm_max_epi16(_mm_min_epi16(g, MaxV), ZeroV);
+    __m128i cb = _mm_max_epi16(_mm_min_epi16(b, MaxV), ZeroV);
+
     //save to output component
-    _mm_store_si128 ((__m128i*)(&(R[i])),r);
-    _mm_store_si128 ((__m128i*)(&(G[i])),g);
-    _mm_store_si128 ((__m128i*)(&(B[i])),b);
+    _mm_store_si128 ((__m128i*)(&(R[i])), cr);
+    _mm_store_si128 ((__m128i*)(&(G[i])), cg);
+    _mm_store_si128 ((__m128i*)(&(B[i])), cb);
   }
 
   if((uint32)Area8 != (uint32)Area)
@@ -537,9 +599,12 @@ void xColorSpaceSSE::ConvertYUV2RGB_ANY(int16* restrict R, int16* restrict G, in
       int32 r = ((R_Y*y + R_U*u + R_V*v + 32768)>>16);
       int32 g = ((G_Y*y + G_U*u + G_V*v + 32768)>>16);
       int32 b = ((B_Y*y + B_U*u + B_V*v + 32768)>>16);
-      R[i] = (int16)r;
-      G[i] = (int16)g;
-      B[i] = (int16)b;
+      int32 cr = xClipU(r, Max);
+      int32 cg = xClipU(g, Max);
+      int32 cb = xClipU(b, Max);
+      R[i] = (int16)cr;
+      G[i] = (int16)cg;
+      B[i] = (int16)cb;
     }
   }
 }
@@ -559,8 +624,8 @@ void xColorSpaceAVX::ConvertRGB2YUV_BT601(int16* restrict Y, int16* restrict U, 
   const __m256i V_G    = _mm256_set1_epi32(((int32)(65536 *-0.41869 + 0.5)));
   const __m256i V_B    = _mm256_set1_epi32(((int32)(65536 *-0.04585 + 0.5)));
   const __m256i c32768 = _mm256_set1_epi32((int32)32768);
-  const int32   Half   = 1<<(BitDepth-1);
-  const __m256i HalfV  = _mm256_set1_epi16(Half);
+  const int32   Mid    = (int16)xBitDepth2MidValue(BitDepth);
+  const int32   Max    = (int16)xBitDepth2MaxValue(BitDepth);
 
   int32 Area16 = (int32)((uint32)Area & (uint32)0xFFFFFFF0);
   for(int32 i=0; i<Area16; i+=16)
@@ -592,13 +657,21 @@ void xColorSpaceAVX::ConvertRGB2YUV_BT601(int16* restrict Y, int16* restrict U, 
     __m256i v = _mm256_permute4x64_epi64(_mm256_packs_epi32(v_0, v_1), 0xD8);
 
     //add half
-    u = _mm256_add_epi16(u, HalfV);
-    v = _mm256_add_epi16(v, HalfV);
+    const __m256i MidV = _mm256_set1_epi16((int16)Mid);
+    u = _mm256_add_epi16(u, MidV);
+    v = _mm256_add_epi16(v, MidV);
+
+    //clip
+    const __m256i ZeroV = _mm256_setzero_si256();
+    const __m256i MaxV  = _mm256_set1_epi16((int16)Max);
+    __m256i cy = _mm256_max_epi16(_mm256_min_epi16(y, MaxV), ZeroV);
+    __m256i cu = _mm256_max_epi16(_mm256_min_epi16(u, MaxV), ZeroV);
+    __m256i cv = _mm256_max_epi16(_mm256_min_epi16(v, MaxV), ZeroV);
 
     //save to output component
-    _mm256_store_si256 ((__m256i*)(&(Y[i])),y);
-    _mm256_store_si256 ((__m256i*)(&(U[i])),u);
-    _mm256_store_si256 ((__m256i*)(&(V[i])),v);
+    _mm256_store_si256 ((__m256i*)(&(Y[i])), cy);
+    _mm256_store_si256 ((__m256i*)(&(U[i])), cu);
+    _mm256_store_si256 ((__m256i*)(&(V[i])), cv);
   }
 
   for(uint32 i=Area16; i<Area; i++)
@@ -609,9 +682,12 @@ void xColorSpaceAVX::ConvertRGB2YUV_BT601(int16* restrict Y, int16* restrict U, 
     int32 y = ((((int32)(65536 * 0.29900 + 0.5))*r + ((int32)(65536 * 0.58700 + 0.5))*g + ((int32)(65536 * 0.11400 + 0.5))*b + 32768)>>16);
     int32 u = ((((int32)(65536 *-0.16874 + 0.5))*r + ((int32)(65536 *-0.33126 + 0.5))*g + ((int32)(65536 * 0.50000 + 0.5))*b + 32768)>>16);
     int32 v = ((((int32)(65536 * 0.50000 + 0.5))*r + ((int32)(65536 *-0.41869 + 0.5))*g + ((int32)(65536 *-0.04585 + 0.5))*b + 32768)>>16);    
-    Y[i] = (int16)y;
-    U[i] = (int16)(u + Half);
-    V[i] = (int16)(v + Half);
+    int32 cy = xClipU(y      , Max);
+    int32 cu = xClipU(u + Mid, Max);
+    int32 cv = xClipU(v + Mid, Max);
+    Y[i] = (int16)cy;
+    U[i] = (int16)cu;
+    V[i] = (int16)cv;
   }
 }
 void xColorSpaceAVX::ConvertYUV2RGB_BT601(int16* restrict R, int16* restrict G, int16* restrict B, const int16* restrict Y, const int16* restrict U, const int16* restrict V, uint32 Area, uint32 BitDepth)
@@ -621,8 +697,10 @@ void xColorSpaceAVX::ConvertYUV2RGB_BT601(int16* restrict R, int16* restrict G, 
   const __m256i G_V    = _mm256_set1_epi32(((int32)(65536 *-0.71414 + 0.5)));
   const __m256i B_U    = _mm256_set1_epi32(((int32)(65536 * 1.77200 + 0.5)));
   const __m256i c32768 = _mm256_set1_epi32((int32)32768);
-  const int32   Half   = 1<<(BitDepth-1);
-  const __m256i HalfV  = _mm256_set1_epi16(Half);
+  const int32   Mid    = (int16)xBitDepth2MidValue(BitDepth);
+  const int32   Max    = (int16)xBitDepth2MaxValue(BitDepth);
+  const __m256i MidV   = _mm256_set1_epi16((int16)Mid);
+  const __m256i MaxV   = _mm256_set1_epi16((int16)Max);
 
   int32 Area16 = (int32)((uint32)Area & (uint32)0xFFFFFFF0);
   for(int32 i=0; i<Area16; i+=16)
@@ -633,8 +711,8 @@ void xColorSpaceAVX::ConvertYUV2RGB_BT601(int16* restrict R, int16* restrict G, 
     __m256i v = _mm256_load_si256((__m256i*)(&(V[i])));
 
     //sub half
-    u = _mm256_sub_epi16(u, HalfV);
-    v = _mm256_sub_epi16(v, HalfV);
+    u = _mm256_sub_epi16(u, MidV);
+    v = _mm256_sub_epi16(v, MidV);
 
     //conver to int32
     __m256i y_0 = _mm256_cvtepi16_epi32(_mm256_extractf128_si256(y,0));
@@ -660,23 +738,32 @@ void xColorSpaceAVX::ConvertYUV2RGB_BT601(int16* restrict R, int16* restrict G, 
     __m256i g = _mm256_permute4x64_epi64(_mm256_packs_epi32(g_0, g_1), 0xD8);
     __m256i b = _mm256_permute4x64_epi64(_mm256_packs_epi32(b_0, b_1), 0xD8);
 
+    //clip
+    const __m256i ZeroV  = _mm256_setzero_si256();
+    __m256i cr = _mm256_max_epi16(_mm256_min_epi16(r, MaxV), ZeroV);
+    __m256i cg = _mm256_max_epi16(_mm256_min_epi16(g, MaxV), ZeroV);
+    __m256i cb = _mm256_max_epi16(_mm256_min_epi16(b, MaxV), ZeroV);
+
     //save to output component
-    _mm256_store_si256 ((__m256i*)(&(R[i])),r);
-    _mm256_store_si256 ((__m256i*)(&(G[i])),g);
-    _mm256_store_si256 ((__m256i*)(&(B[i])),b);
+    _mm256_store_si256 ((__m256i*)(&(R[i])), cr);
+    _mm256_store_si256 ((__m256i*)(&(G[i])), cg);
+    _mm256_store_si256 ((__m256i*)(&(B[i])), cb);
   }
 
   for(uint32 i=Area16; i<Area; i++)
   {
     int32 y = (((int32)Y[i])<<16) + 32768;
-    int32 u = U[i] - Half;
-    int32 v = V[i] - Half;
+    int32 u  = (int32)(U[i]) - Mid;
+    int32 v  = (int32)(V[i]) - Mid;
     int32 r = (                                      + ((int32)(65536 *  1.40200 + 0.5)) * v + y)>>16;
     int32 g = (((int32)(65536 * -0.34414 + 0.5)) * u + ((int32)(65536 * -0.71414 + 0.5)) * v + y)>>16;
     int32 b = (((int32)(65536 *  1.77200 + 0.5)) * u                                         + y)>>16;    
-    R[i] = (int16)r;
-    G[i] = (int16)g;
-    B[i] = (int16)b;
+    int32 cr = xClipU(r, Max);
+    int32 cg = xClipU(g, Max);
+    int32 cb = xClipU(b, Max);
+    R[i] = (int16)cr;
+    G[i] = (int16)cg;
+    B[i] = (int16)cb;
   }
 }
 void xColorSpaceAVX::ConvertRGB2YUV_BT709(int16* restrict Y, int16* restrict U, int16* restrict V, const int16* restrict R, const int16* restrict G, const int16* restrict B, uint32 Area, uint32 BitDepth)
@@ -690,8 +777,8 @@ void xColorSpaceAVX::ConvertRGB2YUV_BT709(int16* restrict Y, int16* restrict U, 
   const __m256i V_G    = _mm256_set1_epi32(((int32)(65536 *-0.45415 + 0.5)));
   const __m256i V_B    = _mm256_set1_epi32(((int32)(65536 *-0.04585 + 0.5)));
   const __m256i c32768 = _mm256_set1_epi32((int32)32768);
-  const int32   Half   = 1<<(BitDepth-1);
-  const __m256i HalfV  = _mm256_set1_epi16(Half);
+  const int32   Mid    = (int16)xBitDepth2MidValue(BitDepth);
+  const int32   Max    = (int16)xBitDepth2MaxValue(BitDepth);
 
   int32 Area16 = (int32)((uint32)Area & (uint32)0xFFFFFFF0);
   for(int32 i=0; i<Area16; i+=16)
@@ -723,13 +810,21 @@ void xColorSpaceAVX::ConvertRGB2YUV_BT709(int16* restrict Y, int16* restrict U, 
     __m256i v = _mm256_permute4x64_epi64(_mm256_packs_epi32(v_0, v_1), 0xD8);
 
     //add half
-    u = _mm256_add_epi16(u, HalfV);
-    v = _mm256_add_epi16(v, HalfV);
+    const __m256i MidV = _mm256_set1_epi16((int16)Mid);
+    u = _mm256_add_epi16(u, MidV);
+    v = _mm256_add_epi16(v, MidV);
+
+    //clip
+    const __m256i ZeroV = _mm256_setzero_si256();
+    const __m256i MaxV  = _mm256_set1_epi16((int16)Max);
+    __m256i cy = _mm256_max_epi16(_mm256_min_epi16(y, MaxV), ZeroV);
+    __m256i cu = _mm256_max_epi16(_mm256_min_epi16(u, MaxV), ZeroV);
+    __m256i cv = _mm256_max_epi16(_mm256_min_epi16(v, MaxV), ZeroV);
 
     //save to output component
-    _mm256_store_si256 ((__m256i*)(&(Y[i])),y);
-    _mm256_store_si256 ((__m256i*)(&(U[i])),u);
-    _mm256_store_si256 ((__m256i*)(&(V[i])),v);
+    _mm256_store_si256 ((__m256i*)(&(Y[i])), cy);
+    _mm256_store_si256 ((__m256i*)(&(U[i])), cu);
+    _mm256_store_si256 ((__m256i*)(&(V[i])), cv);
   }
 
   for(uint32 i=Area16; i<Area; i++)
@@ -740,9 +835,12 @@ void xColorSpaceAVX::ConvertRGB2YUV_BT709(int16* restrict Y, int16* restrict U, 
     int32 y = ((((int32)(65536 * 0.21260 + 0.5))*r + ((int32)(65536 * 0.71520 + 0.5))*g + ((int32)(65536 * 0.07220 + 0.5))*b + 32768)>>16);
     int32 u = ((((int32)(65536 *-0.11457 + 0.5))*r + ((int32)(65536 *-0.38543 + 0.5))*g + ((int32)(65536 * 0.50000 + 0.5))*b + 32768)>>16);
     int32 v = ((((int32)(65536 * 0.50000 + 0.5))*r + ((int32)(65536 *-0.45415 + 0.5))*g + ((int32)(65536 *-0.04585 + 0.5))*b + 32768)>>16);    
-    Y[i] = (int16)y;
-    U[i] = (int16)(u + Half);
-    V[i] = (int16)(v + Half);
+    int32 cy = xClipU(y      , Max);
+    int32 cu = xClipU(u + Mid, Max);
+    int32 cv = xClipU(v + Mid, Max);
+    Y[i] = (int16)cy;
+    U[i] = (int16)cu;
+    V[i] = (int16)cv;
   }
 }
 void xColorSpaceAVX::ConvertYUV2RGB_BT709(int16* restrict R, int16* restrict G, int16* restrict B, const int16* restrict Y, const int16* restrict U, const int16* restrict V, uint32 Area, uint32 BitDepth)
@@ -752,8 +850,10 @@ void xColorSpaceAVX::ConvertYUV2RGB_BT709(int16* restrict R, int16* restrict G, 
   const __m256i G_V    = _mm256_set1_epi32(((int32)(65536 *-0.46812 + 0.5)));
   const __m256i B_U    = _mm256_set1_epi32(((int32)(65536 * 1.85560 + 0.5)));
   const __m256i c32768 = _mm256_set1_epi32((int32)32768);
-  const int32   Half   = 1<<(BitDepth-1);
-  const __m256i HalfV  = _mm256_set1_epi16(Half);
+  const int32   Mid    = (int16)xBitDepth2MidValue(BitDepth);
+  const int32   Max    = (int16)xBitDepth2MaxValue(BitDepth);
+  const __m256i MidV   = _mm256_set1_epi16((int16)Mid);
+  const __m256i MaxV   = _mm256_set1_epi16((int16)Max);
 
   int32 Area16 = (int32)((uint32)Area & (uint32)0xFFFFFFF0);
   for(int32 i=0; i<Area16; i+=16)
@@ -764,8 +864,8 @@ void xColorSpaceAVX::ConvertYUV2RGB_BT709(int16* restrict R, int16* restrict G, 
     __m256i v = _mm256_load_si256((__m256i*)(&(V[i])));
 
     //sub half
-    u = _mm256_sub_epi16(u, HalfV);
-    v = _mm256_sub_epi16(v, HalfV);
+    u = _mm256_sub_epi16(u, MidV);
+    v = _mm256_sub_epi16(v, MidV);
 
     //conver to int32
     __m256i y_0 = _mm256_cvtepi16_epi32(_mm256_extractf128_si256(y,0));
@@ -791,23 +891,32 @@ void xColorSpaceAVX::ConvertYUV2RGB_BT709(int16* restrict R, int16* restrict G, 
     __m256i g = _mm256_permute4x64_epi64(_mm256_packs_epi32(g_0, g_1), 0xD8);
     __m256i b = _mm256_permute4x64_epi64(_mm256_packs_epi32(b_0, b_1), 0xD8);
 
+    //clip
+    const __m256i ZeroV  = _mm256_setzero_si256();
+    __m256i cr = _mm256_max_epi16(_mm256_min_epi16(r, MaxV), ZeroV);
+    __m256i cg = _mm256_max_epi16(_mm256_min_epi16(g, MaxV), ZeroV);
+    __m256i cb = _mm256_max_epi16(_mm256_min_epi16(b, MaxV), ZeroV);
+
     //save to output component
-    _mm256_store_si256 ((__m256i*)(&(R[i])),r);
-    _mm256_store_si256 ((__m256i*)(&(G[i])),g);
-    _mm256_store_si256 ((__m256i*)(&(B[i])),b);
+    _mm256_store_si256 ((__m256i*)(&(R[i])), cr);
+    _mm256_store_si256 ((__m256i*)(&(G[i])), cg);
+    _mm256_store_si256 ((__m256i*)(&(B[i])), cb);
   }
 
   for(uint32 i=Area16; i<Area; i++)
   {
     int32 y = (((int32)Y[i])<<16) + 32768;
-    int32 u = U[i] - Half;
-    int32 v = V[i] - Half;
+    int32 u  = (int32)(U[i]) - Mid;
+    int32 v  = (int32)(V[i]) - Mid;
     int32 r = (                                      + ((int32)(65536 *  1.40200 + 0.5)) * v + y)>>16;
     int32 g = (((int32)(65536 * -0.34414 + 0.5)) * u + ((int32)(65536 * -0.71414 + 0.5)) * v + y)>>16;
     int32 b = (((int32)(65536 *  1.77200 + 0.5)) * u                                         + y)>>16;    
-    R[i] = (int16)r;
-    G[i] = (int16)g;
-    B[i] = (int16)b;
+    int32 cr = xClipU(r, Max);
+    int32 cg = xClipU(g, Max);
+    int32 cb = xClipU(b, Max);
+    R[i] = (int16)cr;
+    G[i] = (int16)cg;
+    B[i] = (int16)cb;
   }
 
 }
@@ -824,8 +933,8 @@ void xColorSpaceAVX::ConvertRGB2YUV_ANY(int16* restrict Y, int16* restrict U, in
   const __m256i V_G    = _mm256_set1_epi32(xColorSpaceCoeff<int32>::c_RGB2YCbCr[Index][7]);
   const __m256i V_B    = _mm256_set1_epi32(xColorSpaceCoeff<int32>::c_RGB2YCbCr[Index][8]);
   const __m256i c32768 = _mm256_set1_epi32((int32)32768);
-  const int32   Half   = 1<<(BitDepth-1);
-  const __m256i HalfV  = _mm256_set1_epi16(Half);
+  const int32   Mid    = (int16)xBitDepth2MidValue(BitDepth);
+  const int32   Max    = (int16)xBitDepth2MaxValue(BitDepth);
 
   int32 Area16 = (int32)((uint32)Area & (uint32)0xFFFFFFF0);
   for(int32 i=0; i<Area16; i+=16)
@@ -857,13 +966,21 @@ void xColorSpaceAVX::ConvertRGB2YUV_ANY(int16* restrict Y, int16* restrict U, in
     __m256i v = _mm256_permute4x64_epi64(_mm256_packs_epi32(v_0, v_1), 0xD8);
 
     //add half
-    u = _mm256_add_epi16(u, HalfV);
-    v = _mm256_add_epi16(v, HalfV);
+    const __m256i MidV = _mm256_set1_epi16((int16)Mid);
+    u = _mm256_add_epi16(u, MidV);
+    v = _mm256_add_epi16(v, MidV);
+
+    //clip
+    const __m256i ZeroV = _mm256_setzero_si256();
+    const __m256i MaxV  = _mm256_set1_epi16((int16)Max);
+    __m256i cy = _mm256_max_epi16(_mm256_min_epi16(y, MaxV), ZeroV);
+    __m256i cu = _mm256_max_epi16(_mm256_min_epi16(u, MaxV), ZeroV);
+    __m256i cv = _mm256_max_epi16(_mm256_min_epi16(v, MaxV), ZeroV);
 
     //save to output component
-    _mm256_store_si256 ((__m256i*)(&(Y[i])),y);
-    _mm256_store_si256 ((__m256i*)(&(U[i])),u);
-    _mm256_store_si256 ((__m256i*)(&(V[i])),v);
+    _mm256_store_si256 ((__m256i*)(&(Y[i])), cy);
+    _mm256_store_si256 ((__m256i*)(&(U[i])), cu);
+    _mm256_store_si256 ((__m256i*)(&(V[i])), cv);
   }
 
   if((uint32)Area16 != (uint32)Area)
@@ -907,8 +1024,10 @@ void xColorSpaceAVX::ConvertYUV2RGB_ANY(int16* restrict R, int16* restrict G, in
   const __m256i B_U = _mm256_set1_epi32(xColorSpaceCoeff<int32>::c_YCbCr2RGB[Index][7]);
   const __m256i B_V = _mm256_set1_epi32(xColorSpaceCoeff<int32>::c_YCbCr2RGB[Index][8]);
   const __m256i c32768 = _mm256_set1_epi32((int32)32768);
-  const int32   Half   = 1<<(BitDepth-1);
-  const __m256i HalfV  = _mm256_set1_epi16(Half);
+  const int32   Mid    = (int16)xBitDepth2MidValue(BitDepth);
+  const int32   Max    = (int16)xBitDepth2MaxValue(BitDepth);
+  const __m256i MidV   = _mm256_set1_epi16((int16)Mid);
+  const __m256i MaxV   = _mm256_set1_epi16((int16)Max);
 
   int32 Area16 = (int32)((uint32)Area & (uint32)0xFFFFFFF0);
   for(int32 i=0; i<Area16; i+=16)
@@ -919,8 +1038,8 @@ void xColorSpaceAVX::ConvertYUV2RGB_ANY(int16* restrict R, int16* restrict G, in
     __m256i v = _mm256_load_si256((__m256i*)(&(V[i])));
 
     //sub half
-    u = _mm256_sub_epi16(u, HalfV);
-    v = _mm256_sub_epi16(v, HalfV);
+    u = _mm256_sub_epi16(u, MidV);
+    v = _mm256_sub_epi16(v, MidV);
 
     //conver to int32
     __m256i y_0 = _mm256_cvtepi16_epi32(_mm256_extractf128_si256(y,0));
@@ -943,10 +1062,16 @@ void xColorSpaceAVX::ConvertYUV2RGB_ANY(int16* restrict R, int16* restrict G, in
     __m256i g = _mm256_permute4x64_epi64(_mm256_packs_epi32(g_0, g_1), 0xD8);
     __m256i b = _mm256_permute4x64_epi64(_mm256_packs_epi32(b_0, b_1), 0xD8);
 
+    //clip
+    const __m256i ZeroV  = _mm256_setzero_si256();
+    __m256i cr = _mm256_max_epi16(_mm256_min_epi16(r, MaxV), ZeroV);
+    __m256i cg = _mm256_max_epi16(_mm256_min_epi16(g, MaxV), ZeroV);
+    __m256i cb = _mm256_max_epi16(_mm256_min_epi16(b, MaxV), ZeroV);
+
     //save to output component
-    _mm256_store_si256 ((__m256i*)(&(R[i])),r);
-    _mm256_store_si256 ((__m256i*)(&(G[i])),g);
-    _mm256_store_si256 ((__m256i*)(&(B[i])),b);
+    _mm256_store_si256 ((__m256i*)(&(R[i])), cr);
+    _mm256_store_si256 ((__m256i*)(&(G[i])), cg);
+    _mm256_store_si256 ((__m256i*)(&(B[i])), cb);
   }
 
   if((uint32)Area16 != (uint32)Area)
@@ -970,12 +1095,14 @@ void xColorSpaceAVX::ConvertYUV2RGB_ANY(int16* restrict R, int16* restrict G, in
       int32 r = ((R_Y*y + R_U*u + R_V*v + 32768)>>16);
       int32 g = ((G_Y*y + G_U*u + G_V*v + 32768)>>16);
       int32 b = ((B_Y*y + B_U*u + B_V*v + 32768)>>16);
-      R[i] = (int16)r;
-      G[i] = (int16)g;
-      B[i] = (int16)b;
+      int32 cr = xClipU(r, Max);
+      int32 cg = xClipU(g, Max);
+      int32 cb = xClipU(b, Max);
+      R[i] = (int16)cr;
+      G[i] = (int16)cg;
+      B[i] = (int16)cb;
     }
   }
-
 }
 #endif //X_AVX1 && X_AVX2
 

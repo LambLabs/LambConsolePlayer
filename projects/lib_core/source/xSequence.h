@@ -92,7 +92,7 @@ public:
   void           createRead       (int32 Width, int32 Height, int32 BitDepth, eImgTp PictureType, ePckTp PackedType, eCrF ChromaFormat, eCmpO ComponentOrder, std::string FileName, int32 BufferSize, xPackedTank* PackedTank);
   void           createWrite      (int32 Width, int32 Height, int32 BitDepth, eImgTp PictureType, ePckTp PackedType, eCrF ChromaFormat, eCmpO ComponentOrder, std::string FileName, int32 BufferSize, xPackedTank* PackedTank);
   void           destroy          ();
-   
+
   eResult        readPacked       (xPacked* DstPacked, bool AllowPackedBufferSwap);
   void           writePacked      (xPacked* SrcPacked, bool AllowPackedBufferSwap);
   eResult        readBuffer       (byte*& DstBuffer, uint32 BufferSize, bool AllowBufferSwap);

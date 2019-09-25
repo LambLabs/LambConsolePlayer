@@ -194,6 +194,16 @@ public:
 //#endif
 
   //===============================================================================================================================================================================================================
+  // Arrangement  + convertion (crazy)
+  //===============================================================================================================================================================================================================
+  // 3(4) components with repetition (ABAC)
+  template<typename DstPelType, typename SrcPelType> static inline void ConvertSOA3toAOS4_ABAC(DstPelType* DstABAC, const SrcPelType* SrcA, const SrcPelType* SrcB, const SrcPelType* SrcC, int32 Area) { xPixelOpsSTD::ConvertSOA3toAOS4_ABAC(DstABAC, SrcA, SrcB, SrcC, Area); }
+  template<typename DstPelType, typename SrcPelType> static inline void ConvertAOS4toSOA3_ABAC(DstPelType* DstA, DstPelType* DstB, DstPelType* DstC, const SrcPelType* SrcABAC, int32 Area) { xPixelOpsSTD::ConvertAOS4toSOA3_ABAC(DstA, DstB, DstC, SrcABAC, Area); }
+  // 3(4) components with repetition (BACA)
+  template<typename DstPelType, typename SrcPelType> static inline void ConvertSOA3toAOS4_BACA(DstPelType* DstBACA, const SrcPelType* SrcA, const SrcPelType* SrcB, const SrcPelType* SrcC, int32 Area) { xPixelOpsSTD::ConvertSOA3toAOS4_BACA(DstBACA, SrcA, SrcB, SrcC, Area); }
+  template<typename DstPelType, typename SrcPelType> static inline void ConvertAOS4toSOA3_BACA(DstPelType* DstA, DstPelType* DstB, DstPelType* DstC, const SrcPelType* SrcBACA, int32 Area) { xPixelOpsSTD::ConvertAOS4toSOA3_BACA(DstA, DstB, DstC, SrcBACA, Area); }
+  
+  //===============================================================================================================================================================================================================
   // Arithmetic
   //===============================================================================================================================================================================================================
   //Arithmetic - shift
@@ -335,21 +345,21 @@ template<typename PelType> void xPixelOps::ClearMargin(PelType* restrict Addr, i
   //left and right
   for (int32 y=0; y<Height; y++)
   {
-    ::memset(Addr - Margin, 0, Margin*sizeof(PelType));
-    ::memset(Addr + Width,  0, Margin*sizeof(PelType));
+    ::memset((void*)(Addr - Margin), 0, Margin*sizeof(PelType));
+    ::memset((void*)(Addr + Width ), 0, Margin*sizeof(PelType));
     Addr += Stride;
   }
   //below
   Addr -= (Stride + Margin);
   for (int32 y=0; y<Margin; y++)
   {
-    ::memset(Addr + (y+1)*Stride, 0, (Width + (Margin<<1))*sizeof(PelType));
+    ::memset((void*)(Addr + (y+1)*Stride), 0, (Width + (Margin<<1))*sizeof(PelType));
   }
   //above
   Addr -= ((Height-1) * Stride);
   for (int32 y=0; y<Margin; y++)
   {
-    ::memset(Addr - (y+1)*Stride, 0, (Width + (Margin<<1))*sizeof(PelType));
+    ::memset((void*)(Addr - (y+1)*Stride), 0, (Width + (Margin<<1))*sizeof(PelType));
   }
 }
 

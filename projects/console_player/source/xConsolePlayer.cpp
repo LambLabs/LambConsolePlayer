@@ -301,7 +301,7 @@ void xConsolePlayer::xGetFrameFromUser()
   scanf("%d", &FrameId);
   xHideCursor();
   
-  if ((FrameId > 0) && (FrameId < m_NumberOfFrames))
+  if ((FrameId >= 0) && (FrameId < m_NumberOfFrames))
   {
     m_FrameId = FrameId;
     xReadFrame();
@@ -345,6 +345,7 @@ void xConsolePlayer::xKeyEventProc(KEY_EVENT_RECORD ker)
       if (m_FrameId == m_NumberOfFrames) m_FrameId = 0;
       xReadFrame();
       xRescaleFrame();
+      m_RefreshScreen = true;
     }
     break;
     case VK_LEFT:
@@ -353,16 +354,19 @@ void xConsolePlayer::xKeyEventProc(KEY_EVENT_RECORD ker)
       if (m_FrameId < 0) m_FrameId = m_NumberOfFrames - 1;
       xReadFrame();
       xRescaleFrame();
+      m_RefreshScreen = true;
     }
     break;
     case VK_F1:
     {
       m_ShowHelp = !m_ShowHelp;
+      m_RefreshScreen = true;
     }
     break;
     case VK_F2:
     {
       m_ShowInfo = !m_ShowInfo;
+      m_RefreshScreen = true;
     }
     break;
     case 0x51: //Q
@@ -374,6 +378,7 @@ void xConsolePlayer::xKeyEventProc(KEY_EVENT_RECORD ker)
     {
       //m_Done = true;
       xGetFrameFromUser();
+      m_RefreshScreen = true;
     }
     break;
     }
@@ -448,6 +453,7 @@ void xConsolePlayer::xResizeEventProc(int wbsr)
   xReadFrame();
   xRescaleFrame();
   //wbsr.dwSize.X, wbsr.dwSize.Y);
+  m_RefreshScreen = true;
 }
 #ifndef WIN32
 void xConsolePlayer::xStaticResizeSignal(int32 a)
@@ -524,8 +530,12 @@ void xConsolePlayer::run()
   while (!m_Done)
   //for(int32 i=0;i<100;i++)
   {
-    if(m_ShowHelp) xDisplayHelp();
-    else           xDisplayPicture(m_PictureOutRGB);
+    if (m_RefreshScreen)
+    {
+      if (m_ShowHelp) xDisplayHelp();
+      else            xDisplayPicture(m_PictureOutRGB);
+      m_RefreshScreen = false;
+    }
 
 #ifdef WIN32
     DWORD cNumRead;

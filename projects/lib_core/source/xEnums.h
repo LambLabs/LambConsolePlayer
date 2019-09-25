@@ -416,6 +416,27 @@ enum eCmp : int8
   CMP_NONE,
 };
 
+enum class eCmpType : int8
+{
+  INVALID = NOT_VALID,
+  None    = 0,
+
+  //Y Cb Cr
+  Lm,     //Luma      (Y)
+  Cb,     //Chroma Cb (U)
+  Cr,     //Chroma Cr (V)
+  
+  //R G B
+  Red,
+  Green,
+  Blue,
+
+  //additional
+  Alpha,
+  Depth,  
+};
+
+
 enum class eChanel : int8
 {
   INVALID = NOT_VALID,

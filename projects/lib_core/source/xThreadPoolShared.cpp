@@ -168,7 +168,7 @@ void xThreadPoolInterface::addWaitingTask(xThreadPoolShared::xWorkerTask* Task)
   Task->setPriority(m_Priority);
   m_ThreadPool->addWaitingTask(Task);
 }
-void xThreadPoolInterface::addWaitingTask(std::function<void()> Function)
+void xThreadPoolInterface::addWaitingTask(std::function<void(int32)> Function)
 { 
   xThreadPoolShared::xWorkerTaskFunction* Task = new xThreadPoolShared::xWorkerTaskFunction((uintPtr)this, m_Priority, Function);
   m_ThreadPool->addWaitingTask(Task);
@@ -181,7 +181,7 @@ void xThreadPoolInterface::waitUntilTasksFinished(int32 NumTasksToWaitFor)
     delete Task;
   }
 }
-void xThreadPoolInterface::executeTask(std::function<void()> Function)
+void xThreadPoolInterface::executeTask(std::function<void(int32)> Function)
 {
   addWaitingTask(Function);
   waitUntilTasksFinished(1);

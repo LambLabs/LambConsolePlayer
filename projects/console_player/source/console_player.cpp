@@ -68,10 +68,10 @@ int main(int argc, char *argv[], char *envp[])
 
   //==============================================================================
   // CPU check
-  xCpuInfo CpuInfo;
-  CpuInfo.checkCPIUD();
-  if(!CpuInfo.checkCompatibility()) { printf("Your CPU is compatible with all reqired instruction sets\n"); }
-  else                              { printf("Your CPU is incompatible with some of reqired instruction sets\n"); }
+  //xCpuInfo CpuInfo;
+  //CpuInfo.checkCPIUD();
+  //if(!CpuInfo.checkCompatibility()) { printf("Your CPU is compatible with all reqired instruction sets\n"); }
+  //else                              { printf("Your CPU is incompatible with some of reqired instruction sets\n"); }
   printf("\n");
 
   //==============================================================================

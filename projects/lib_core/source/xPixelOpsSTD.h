@@ -115,6 +115,16 @@ public:
   template<typename DstPelType, typename SrcPelType> static void ConvertAOS4toSOA3(DstPelType* restrict DstA, DstPelType* restrict DstB, DstPelType* restrict DstC, const SrcPelType* restrict SrcABCD, int32 DstStride, int32 SrcStride, int32 Width, int32 Height);
 
   //===============================================================================================================================================================================================================
+  // Arrangement + convertion (crazy)
+  //===============================================================================================================================================================================================================
+  // 3(4) components with repetition (ABAC)
+  template<typename DstPelType, typename SrcPelType> static void ConvertSOA3toAOS4_ABAC(DstPelType* restrict DstABAC, const SrcPelType* restrict SrcA, const SrcPelType* restrict SrcB, const SrcPelType* restrict SrcC, int32 Area);
+  template<typename DstPelType, typename SrcPelType> static void ConvertAOS4toSOA3_ABAC(DstPelType* restrict DstA, DstPelType* restrict DstB, DstPelType* restrict DstC, const SrcPelType* restrict SrcABAC, int32 Area);
+  // 3(4) components with repetition (BACA)
+  template<typename DstPelType, typename SrcPelType> static void ConvertSOA3toAOS4_BACA(DstPelType* restrict DstBACA, const SrcPelType* restrict SrcA, const SrcPelType* restrict SrcB, const SrcPelType* restrict SrcC, int32 Area); 
+  template<typename DstPelType, typename SrcPelType> static void ConvertAOS4toSOA3_BACA(DstPelType* restrict DstA, DstPelType* restrict DstB, DstPelType* restrict DstC, const SrcPelType* restrict SrcBACA, int32 Area);
+
+  //===============================================================================================================================================================================================================
   // Arithmetic
   //===============================================================================================================================================================================================================
   //template <typename PelType> static void   AddSat        (PelType* Dst, PelType* Src0, PelType* Src1, int32 Area);
@@ -415,7 +425,7 @@ template <typename PelType> void xPixelOpsSTD::AOS4toSOA3_BACA(PelType* restrict
 }
 
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-// Arrangement combined with (Pack (with saturation) + Unpack)
+// Arrangement + conversion
 //---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 template<typename DstPelType, typename SrcPelType> void xPixelOpsSTD::ConvertSOA4toAOS4(DstPelType* restrict DstABCD, const SrcPelType* restrict SrcA, const SrcPelType* restrict SrcB, const SrcPelType* restrict SrcC, const SrcPelType* restrict SrcD, int32 Area)
 {
@@ -571,6 +581,66 @@ template<typename DstPelType, typename SrcPelType> void xPixelOpsSTD::ConvertAOS
     DstA    += DstStride;
     DstB    += DstStride;
     DstC    += DstStride;
+  }
+}
+
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+// Arrangement + conversion (crazy)
+//---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+template<typename DstPelType, typename SrcPelType> void xPixelOpsSTD::ConvertSOA3toAOS4_ABAC(DstPelType* restrict DstABAC, const SrcPelType* restrict SrcA, const SrcPelType* restrict SrcB, const SrcPelType* restrict SrcC, int32 Area)
+{
+  for (int32 i = 0; i < Area; i++)
+  {
+    DstPelType a1 = xConvertSaturateRoundType<DstPelType, SrcPelType>(SrcA[i<<1      ]);
+    DstPelType b  = xConvertSaturateRoundType<DstPelType, SrcPelType>(SrcB[i         ]);
+    DstPelType a2 = xConvertSaturateRoundType<DstPelType, SrcPelType>(SrcA[(i<<1) + 1]);
+    DstPelType c  = xConvertSaturateRoundType<DstPelType, SrcPelType>(SrcC[i         ]);
+    DstABAC[(i<<2) + 0] = a1;
+    DstABAC[(i<<2) + 1] = b;
+    DstABAC[(i<<2) + 2] = a2;
+    DstABAC[(i<<2) + 3] = c;
+  }
+}
+template<typename DstPelType, typename SrcPelType> void xPixelOpsSTD::ConvertAOS4toSOA3_ABAC(DstPelType* restrict DstA, DstPelType* restrict DstB, DstPelType* restrict DstC, const SrcPelType* restrict SrcABAC, int32 Area)
+{
+  for (int32 i = 0; i < Area; i++)
+  {
+    DstPelType a1 = xConvertSaturateRoundType<DstPelType, SrcPelType>(SrcABAC[(i << 2) + 0]);
+    DstPelType b  = xConvertSaturateRoundType<DstPelType, SrcPelType>(SrcABAC[(i << 2) + 1]);
+    DstPelType a2 = xConvertSaturateRoundType<DstPelType, SrcPelType>(SrcABAC[(i << 2) + 2]);
+    DstPelType c  = xConvertSaturateRoundType<DstPelType, SrcPelType>(SrcABAC[(i << 2) + 3]);
+    DstA[i<<1      ] = a1;
+    DstB[i         ] = b;
+    DstA[(i<<1) + 1] = a2;
+    DstC[i         ] = c;
+  }
+}
+template<typename DstPelType, typename SrcPelType> void xPixelOpsSTD::ConvertSOA3toAOS4_BACA(DstPelType* restrict DstBACA, const SrcPelType* restrict SrcA, const SrcPelType* restrict SrcB, const SrcPelType* restrict SrcC, int32 Area)
+{
+  for (int32 i = 0; i < Area; i++)
+  {
+    DstPelType b  = xConvertSaturateRoundType<DstPelType, SrcPelType>(SrcB[i         ]);
+    DstPelType a1 = xConvertSaturateRoundType<DstPelType, SrcPelType>(SrcA[i<<1      ]);
+    DstPelType c  = xConvertSaturateRoundType<DstPelType, SrcPelType>(SrcC[i         ]);
+    DstPelType a2 = xConvertSaturateRoundType<DstPelType, SrcPelType>(SrcA[(i<<1) + 1]);    
+    DstBACA[(i<<2) + 0] = b;
+    DstBACA[(i<<2) + 1] = a1;
+    DstBACA[(i<<2) + 2] = c;
+    DstBACA[(i<<2) + 3] = a2;
+  }
+}
+template<typename DstPelType, typename SrcPelType> void xPixelOpsSTD::ConvertAOS4toSOA3_BACA(DstPelType* restrict DstA, DstPelType* restrict DstB, DstPelType* restrict DstC, const SrcPelType* restrict SrcBACA, int32 Area)
+{
+  for (int32 i = 0; i < Area; i++)
+  {
+    DstPelType b  = xConvertSaturateRoundType<DstPelType, SrcPelType>(SrcBACA[(i << 2) + 0]);
+    DstPelType a1 = xConvertSaturateRoundType<DstPelType, SrcPelType>(SrcBACA[(i << 2) + 1]);
+    DstPelType c  = xConvertSaturateRoundType<DstPelType, SrcPelType>(SrcBACA[(i << 2) + 2]);
+    DstPelType a2 = xConvertSaturateRoundType<DstPelType, SrcPelType>(SrcBACA[(i << 2) + 3]);
+    DstB[i         ] = b;
+    DstA[i<<1      ] = a1;
+    DstC[i         ] = c;
+    DstA[(i<<1) + 1] = a2;    
   }
 }
 

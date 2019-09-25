@@ -171,7 +171,7 @@ public:
 template<typename XXX> class xVec2
 {
 protected:
-  XXX m_V[2];
+  xAligned(2 * sizeof(XXX)) XXX m_V[2];
 
 public:
   xVec2() {}
@@ -199,7 +199,7 @@ public:
   inline XXX   getMaxAbs ()                const {return xMax(xAbs(m_V[0]), xAbs(m_V[1]));}
   inline XXX   getMinAbs ()                const {return xMin(xAbs(m_V[0]), xAbs(m_V[1]));}
   inline XXX   getSum    ()                const {return (m_V[0] + m_V[1]);}
-  inline XXX   getSumSqrs()                const {return (xPow2(m_V[0]) + xPow2(m_V[1]));}
+  inline XXX   getSumPow2()                const {return (xPow2(m_V[0]) + xPow2(m_V[1]));}
   inline XXX   getSumAbs ()                const {return (xAbs(m_V[0]) + xAbs(m_V[1]));}
   inline XXX   getMul    ()                const {return m_V[0] * m_V[1];}
 
@@ -276,7 +276,7 @@ public:
 template<typename XXX> class xVec3
 {
 protected:
-  XXX m_V[3];
+  xAligned(sizeof(XXX)) XXX m_V[3];
 
 public:
   xVec3() {}
@@ -285,6 +285,8 @@ public:
   xVec3(const XXX* V)                { std::memcpy(m_V, V, sizeof(m_V)); }
   xVec3(const std::vector<XXX>&   V) { std::memcpy(m_V, V.data(), sizeof(m_V)); }
   xVec3(const std::array<XXX, 3>& A) { std::memcpy(m_V, A.data(), sizeof(m_V)); }
+  xVec3(const xVec2<XXX>& Vec2, XXX z) { m_V[0] = Vec2[0]; m_V[1] = Vec2[1]; m_V[2] = z; }
+  xVec3(XXX x, const xVec2<XXX>& Vec2) { m_V[0] = x; m_V[1] = Vec2[0]; m_V[2] = Vec2[1]; }
 
   template<typename YYY> explicit operator xVec3<YYY>() const { return xVec3<YYY>((YYY)m_V[0], (YYY)m_V[1], (YYY)m_V[2]); }
 
@@ -311,6 +313,9 @@ public:
   inline XXX   getSum    (               ) const {return (m_V[0] + m_V[1] + m_V[2]);}
   inline XXX   getSumSqrs(               ) const {return (xPow2(m_V[0]) + xPow2(m_V[1]) + xPow2(m_V[2]));}
   inline XXX   getSumAbs (               ) const {return (xAbs(m_V[0]) + xAbs(m_V[1]) + xAbs(m_V[2]));}
+  inline XXX   getMul    ()                const {return m_V[0] * m_V[1] * m_V[2];}
+
+  inline xVec2<XXX> SubsetToVec2() const { return xVec2<XXX>(m_V[0], m_V[1]); }
 
   template <typename YYY> inline YYY getSumCvtSqrs() const {return (xPow2((YYY)m_V[0]) + xPow2((YYY)m_V[1]) + xPow2((YYY)m_V[2]));}
 
@@ -375,17 +380,17 @@ public:
 template<typename XXX> class xVec4
 {
 protected:
-  XXX m_V[4];
+  xAligned(4 * sizeof(XXX)) XXX m_V[4];
 
 public:
   inline xVec4() {}
-  inline xVec4(XXX v)                       { m_V[0] = v; m_V[1] = v; m_V[2] = v; m_V[3] = v;}
-  inline xVec4(XXX x, XXX y, XXX z, XXX a)  { m_V[0] = x; m_V[1] = y; m_V[2] = z; m_V[3] = a;}
-  inline xVec4(XXX V[])                     { std::memcpy(m_V, V, sizeof(m_V)); }
+  inline xVec4(const XXX v)                 { m_V[0] = v; m_V[1] = v; m_V[2] = v; m_V[3] = v;}
+  inline xVec4(const XXX x, const XXX y, const XXX z, const XXX a)  { m_V[0] = x; m_V[1] = y; m_V[2] = z; m_V[3] = a;}
+  inline xVec4(const XXX V[])               { std::memcpy(m_V, V, sizeof(m_V)); }
   inline xVec4(const std::vector<XXX>&   V) { std::memcpy(m_V, V.data(), sizeof(m_V)); }
   inline xVec4(const std::array<XXX, 4>& A) { std::memcpy(m_V, A.data(), sizeof(m_V)); }
 
-  template<typename YYY> explicit operator xVec4<YYY> const() { return xVec4<YYY>((YYY)m_V[0], (YYY)m_V[1], (YYY)m_V[2], (YYY)m_V[3]); }
+  template<typename YYY> explicit operator xVec4<YYY>() const { return xVec4<YYY>((YYY)m_V[0], (YYY)m_V[1], (YYY)m_V[2], (YYY)m_V[3]); }
 
   inline void  set     (const XXX x, const XXX y, const XXX z, const XXX a) {m_V[0] = x; m_V[1] = y; m_V[2] = z; m_V[3] = a; }
   inline void  setIdx  (const XXX v, const int32 Idx)                       {m_V[Idx] = v; }
@@ -396,10 +401,12 @@ public:
   inline void  setZero ()                                                   {std::memset(m_V, 0, sizeof(m_V));}
 
   inline XXX   getIdx    (const int32 Idx) const {return m_V[Idx]; }
+  inline void  get       (XXX* V         ) const { std::memcpy(V, m_V, sizeof(m_V)); }
   inline XXX   getX      ()                const {return m_V[0];}
   inline XXX   getY      ()                const {return m_V[1];}
   inline XXX   getZ      ()                const {return m_V[2];}
   inline XXX   getA      ()                const {return m_V[3];}
+  inline xVec4<XXX> getAbs() const { return xVec4<XXX>(xAbs(m_V[0]), xAbs(m_V[1]), xAbs(m_V[2]), xAbs(m_V[3])); }
   inline XXX   getAbsX   ()                const {return xAbs(m_V[0]);}
   inline XXX   getAbsY   ()                const {return xAbs(m_V[1]);}
   inline XXX   getAbsZ   ()                const {return xAbs(m_V[2]);}
@@ -411,6 +418,7 @@ public:
   inline XXX   getSum    ()                const {return (m_V[0] + m_V[1] + m_V[2] + m_V[3]);}
   inline XXX   getSumSqrs()                const {return (xPow2(m_V[0]) + xPow2(m_V[1]) + xPow2(m_V[2]) + zPow2(m_V[3]));}
   inline XXX   getSumAbs ()                const {return (xAbs(m_V[0]) + xAbs(m_V[1]) + xAbs(m_V[2]) + xAbs(m_V[3]));}
+  inline XXX   getMul    ()                const {return m_V[0] * m_V[1] * m_V[2] * m_V[3];}
 
   inline const xVec4<XXX>& operator += (const xVec4<XXX>& Vec4)       {m_V[0]  += Vec4.m_V[0]; m_V[1]  += Vec4.m_V[1]; m_V[2]  += Vec4.m_V[2]; m_V[3]  += Vec4.m_V[3]; return *this;}  
   inline const xVec4<XXX>& operator -= (const xVec4<XXX>& Vec4)       {m_V[0]  -= Vec4.m_V[0]; m_V[1]  -= Vec4.m_V[1]; m_V[2]  -= Vec4.m_V[2]; m_V[3]  -= Vec4.m_V[3]; return *this;}
@@ -511,6 +519,20 @@ typedef xVec4< float>  floatV4;
 typedef xVec4< flt32>  flt32V4;
 typedef xVec4<double> doubleV4;
 typedef xVec4< flt64>  flt64V4;
+
+//=============================================================================================================================================================================
+
+template <class XXX> static inline int32V2 xRoundFltToInt32(xVec2<XXX> FltV);
+template <> inline int32V2 xRoundFltToInt32(xVec2<flt32> FltV) { return { xRoundFloatToInt32 (FltV[0]), xRoundFloatToInt32 (FltV[1])}; }
+template <> inline int32V2 xRoundFltToInt32(xVec2<flt64> FltV) { return { xRoundDoubleToInt32(FltV[0]), xRoundDoubleToInt32(FltV[1])}; }
+
+template <class XXX> static inline int32V3 xRoundFltToInt32(xVec3<XXX> FltV);
+template <> inline int32V3 xRoundFltToInt32(xVec3<flt32> FltV) { return { xRoundFloatToInt32 (FltV[0]), xRoundFloatToInt32 (FltV[1]), xRoundFloatToInt32 (FltV[2])}; }
+template <> inline int32V3 xRoundFltToInt32(xVec3<flt64> FltV) { return { xRoundDoubleToInt32(FltV[0]), xRoundDoubleToInt32(FltV[1]), xRoundDoubleToInt32(FltV[2])}; }
+
+template <class XXX> static inline int32V4 xRoundFltToInt32(xVec4<XXX> FltV);
+template <> inline int32V4 xRoundFltToInt32(xVec4<flt32> FltV) { return { xRoundFloatToInt32 (FltV[0]), xRoundFloatToInt32 (FltV[1]), xRoundFloatToInt32 (FltV[2]), xRoundFloatToInt32 (FltV[3])}; }
+template <> inline int32V4 xRoundFltToInt32(xVec4<flt64> FltV) { return { xRoundDoubleToInt32(FltV[0]), xRoundDoubleToInt32(FltV[1]), xRoundDoubleToInt32(FltV[2]), xRoundDoubleToInt32(FltV[3])}; }
 
 //=============================================================================================================================================================================
 

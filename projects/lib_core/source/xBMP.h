@@ -40,25 +40,34 @@ namespace AVlib {
 class xBMP
 {
 public:
-  class xBitmapFileHeader
-  {
-  public:
-    static const uint32 c_HeaderLength = 12;
+  class xBitmapFileHeader;
+  class xBitmapInfoHeader;
 
-  protected:
+public:
+  template <typename PelType> static bool readFromFile(xPic<PelType>* DstPic, xFile* SrcFile);
+  template <typename PelType> static bool writeToFile (xFile* DstFile, xPic<PelType>* SrcPic);
+};
+
+#pragma pack(2)
+class xAligned(2) xBMP::xBitmapFileHeader
+{
+public:
+  static const uint32 c_HeaderLength = 14;
+
+protected:
     uint16  m_Type;
     uint32  m_FileSize;
     uint16  m_Reserved1;
     uint16  m_Reserved2;
     uint32  m_Offset;
 
-  public:
+public:
     int32   Parse (xByteBuffer* Input ) { Absorb(Input); Input->modifyRead(-(int32)c_HeaderLength); return c_HeaderLength; }
     int32   Absorb(xByteBuffer* Input ); 
     int32   Format(xByteBuffer* Output) { Emit(Output); Output->modifyWritten(-(int32)c_HeaderLength); return c_HeaderLength; }
     int32   Emit  (xByteBuffer* Output); 
 
-  public:
+public:
     void    setType           (uint16 Type           ){ m_Type = Type; }
     uint16  getType           (                      ){ return m_Type; }
     void    setFileSize       (uint32 FileSize       ){ m_FileSize = FileSize; }
@@ -69,14 +78,16 @@ public:
     uint16  getReserved2      (                      ){ return m_Reserved2; }
     void    setOffset         (uint32 Offset         ){ m_Offset = Offset; }
     uint32  getOffset         (                      ){ return m_Offset; }
-  };
+};
+#pragma pack()
 
-  class xBitmapInfoHeader
-  {
-  public:
+#pragma pack(2)
+class xAligned(2) xBMP::xBitmapInfoHeader
+{
+public:
     static const uint32 c_HeaderLength = 40;
 
-  protected:
+protected:
     uint32  m_HeaderSize;
     int32   m_Width;
     int32   m_Height;
@@ -89,13 +100,13 @@ public:
     uint32  m_ColorsUsed;
     uint32  m_ColorsImportant;
 
-  public:
+public:
     int32   Parse (xByteBuffer* Input ) { Absorb(Input); Input->modifyRead(-(int32)c_HeaderLength); return c_HeaderLength; }
     int32   Absorb(xByteBuffer* Input ); 
     int32   Format(xByteBuffer* Output) { Emit(Output); Output->modifyWritten(-(int32)c_HeaderLength); return c_HeaderLength; }
     int32   Emit  (xByteBuffer* Output); 
 
-  public:
+public:
     void    setHeaderSize     (uint32 HeaderSize     ){ m_HeaderSize = HeaderSize; }
     uint32  getHeaderSize     (                      ){ return m_HeaderSize; }
     void    setWidth          (int32  Width          ){ m_Width = Width; }
@@ -118,12 +129,8 @@ public:
     uint32  getColorsUsed     (                      ){ return m_ColorsUsed; }
     void    setColorsImportant(uint32 ColorsImportant){ m_ColorsImportant = ColorsImportant; }
     uint32  getColorsImportant(                      ){ return m_ColorsImportant; }
-  };
-
-public:
-  template <typename PelType> static bool readFromFile(xPic<PelType>* DstPic, xFile* SrcFile);
-  template <typename PelType> static bool writeToFile (xFile* DstFile, xPic<PelType>* SrcPic);
 };
+#pragma pack()
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 

@@ -107,7 +107,8 @@ template <typename PelType, eClrSpc ClrSpc> void xColorSpaceSTD::ConvertRGB2YUV(
 
   if constexpr(std::is_integral_v<PelType>)
   {
-    const CoeffType Half= 1<<(BitDepth-1);
+    const CoeffType Mid = (CoeffType)xBitDepth2MidValue(BitDepth);
+    const CoeffType Max = (CoeffType)xBitDepth2MaxValue(BitDepth);
     for(uint32 i=0; i<Area; i++)
     {
       CoeffType r = R[i];
@@ -116,9 +117,12 @@ template <typename PelType, eClrSpc ClrSpc> void xColorSpaceSTD::ConvertRGB2YUV(
       CoeffType y = ((Y_R*r + Y_G*g + Y_B*b + Add)>>Shr);
       CoeffType u = ((U_R*r + U_G*g + U_B*b + Add)>>Shr);
       CoeffType v = ((V_R*r + V_G*g + V_B*b + Add)>>Shr);
-      Y[i] = (PelType)y;
-      U[i] = (PelType)(u + Half);
-      V[i] = (PelType)(v + Half);
+      CoeffType cy = xClipU(y      , Max);
+      CoeffType cu = xClipU(u + Mid, Max);
+      CoeffType cv = xClipU(v + Mid, Max);
+      Y[i] = (PelType)cy;
+      U[i] = (PelType)cu;
+      V[i] = (PelType)cv;
     }
   }
   else //float
@@ -130,10 +134,13 @@ template <typename PelType, eClrSpc ClrSpc> void xColorSpaceSTD::ConvertRGB2YUV(
       CoeffType b = B[i];
       CoeffType y = Y_R*r + Y_G*g + Y_B*b;
       CoeffType u = U_R*r + U_G*g + U_B*b;
-      CoeffType v = V_R*r + V_G*g + V_B*b;    
-      Y[i] = (PelType)y;
-      U[i] = (PelType)u;
-      V[i] = (PelType)v;
+      CoeffType v = V_R*r + V_G*g + V_B*b;
+      CoeffType cy = xClipUF(y);
+      CoeffType cu = xClipUF(u);
+      CoeffType cv = xClipUF(v);
+      Y[i] = (PelType)cy;
+      U[i] = (PelType)cu;
+      V[i] = (PelType)cv;
     }
   }
 }
@@ -156,35 +163,42 @@ template <typename PelType, eClrSpc ClrSpc> void xColorSpaceSTD::ConvertYUV2RGB(
 
   if constexpr(std::is_integral_v<PelType>)
   {
-    const int32 Half= 1<<(BitDepth-1);
+    const CoeffType Mid = (CoeffType)xBitDepth2MidValue(BitDepth);
+    const CoeffType Max = (CoeffType)xBitDepth2MaxValue(BitDepth);
     if constexpr(R_Y == One && G_Y == One && B_Y == One && R_U == 0 && B_V == 0)
     {
       for(uint32 i=0; i<Area; i++)
       {
-        CoeffType y = (((CoeffType)Y[i])<<Shr) + Add;
-        CoeffType u = U[i] - Half;
-        CoeffType v = V[i] - Half;
+        CoeffType y  = ((CoeffType)(Y[i])<<Shr) + Add;
+        CoeffType u  = (CoeffType)(U[i]) - Mid;
+        CoeffType v  = (CoeffType)(V[i]) - Mid;
         CoeffType r = (      + R_V*v + y)>>Shr;
         CoeffType g = (G_U*u + G_V*v + y)>>Shr;
         CoeffType b = (B_U*u         + y)>>Shr;
-        R[i] = (PelType)r;
-        G[i] = (PelType)g;
-        B[i] = (PelType)b;
+        CoeffType cr = xClipU(r, Max);
+        CoeffType cg = xClipU(g, Max);
+        CoeffType cb = xClipU(b, Max);
+        R[i] = (PelType)cr;
+        G[i] = (PelType)cg;
+        B[i] = (PelType)cb;
       }
     }
     else
     {
       for(uint32 i=0; i<Area; i++)
       {
-        CoeffType y = Y[i];
-        CoeffType u = U[i] - Half;
-        CoeffType v = V[i] - Half;
+        CoeffType y  = (CoeffType)(Y[i]);
+        CoeffType u  = (CoeffType)(U[i]) - Mid;
+        CoeffType v  = (CoeffType)(V[i]) - Mid;
         CoeffType r = ((R_Y*y + R_U*u + R_V*v + Add)>>Shr);
         CoeffType g = ((G_Y*y + G_U*u + G_V*v + Add)>>Shr);
         CoeffType b = ((B_Y*y + B_U*u + B_V*v + Add)>>Shr);
-        R[i] = (PelType)r;
-        G[i] = (PelType)g;
-        B[i] = (PelType)b;
+        CoeffType cr = xClipU(r, Max);
+        CoeffType cg = xClipU(g, Max);
+        CoeffType cb = xClipU(b, Max);
+        R[i] = (PelType)cr;
+        G[i] = (PelType)cg;
+        B[i] = (PelType)cb;
       }
     }
   }
@@ -200,9 +214,12 @@ template <typename PelType, eClrSpc ClrSpc> void xColorSpaceSTD::ConvertYUV2RGB(
         CoeffType r = (      + R_V*v + y);
         CoeffType g = (G_U*u + G_V*v + y);
         CoeffType b = (B_U*u         + y);
-        R[i] = (PelType)r;
-        G[i] = (PelType)g;
-        B[i] = (PelType)b;
+        CoeffType cr = xClipUF(r);
+        CoeffType cg = xClipUF(g);
+        CoeffType cb = xClipUF(b);
+        R[i] = (PelType)cr;
+        G[i] = (PelType)cg;
+        B[i] = (PelType)cb;
       }
     }
     else
@@ -215,9 +232,12 @@ template <typename PelType, eClrSpc ClrSpc> void xColorSpaceSTD::ConvertYUV2RGB(
         CoeffType r = (R_Y*y + R_U*u + R_V*v);
         CoeffType g = (G_Y*y + G_U*u + G_V*v);
         CoeffType b = (B_Y*y + B_U*u + B_V*v);
-        R[i] = (PelType)r;
-        G[i] = (PelType)g;
-        B[i] = (PelType)b;
+        CoeffType cr = xClipUF(r);
+        CoeffType cg = xClipUF(g);
+        CoeffType cb = xClipUF(b);
+        R[i] = (PelType)cr;
+        G[i] = (PelType)cg;
+        B[i] = (PelType)cb;
       }
     }
   }

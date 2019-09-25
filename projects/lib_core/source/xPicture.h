@@ -33,9 +33,18 @@
 #include "xCommon.h"
 #include "xFile.h"
 #include "xThreadPoolShared.h"
+#include "xPixelOps.h"
 #include <typeinfo>
 #include <type_traits>
 #include <mutex>
+
+#ifdef max
+#undef max
+#endif
+
+#ifdef min
+#undef min
+#endif
 
 #define AVlib_xPicture_DEFAULT
 
@@ -55,7 +64,6 @@ public:
   typedef PelType      T;
   typedef xMemMap2D<T> MemMap;
   typedef xPicTank<T>  tCorespondingTank;
-
   static const uint32 c_NumberOfComponents = 4;
 
 protected:
@@ -68,12 +76,11 @@ protected:
   eCrF        m_ChromaFormat;
   int32       m_NumComponents;
 
-  int8V2      m_CmpShift[c_NumberOfComponents];
-
-  int32       m_CmpNumPels        [c_NumberOfComponents]; //size of component 
-  int32       m_CmpPelStride      [c_NumberOfComponents]; //pel stride
-  PelType*    m_CmpPelBuffer      [c_NumberOfComponents]; //picture buffer
-  PelType*    m_CmpPelOrigin      [c_NumberOfComponents]; //pel origin, pel access -> m_PelOrg[y*m_PelStride + x]
+  int8V2      m_CmpShift    [c_NumberOfComponents];
+  int32       m_CmpNumPels  [c_NumberOfComponents]; //size of component 
+  int32       m_CmpPelStride[c_NumberOfComponents]; //pel stride
+  PelType*    m_CmpPelBuffer[c_NumberOfComponents]; //picture buffer
+  PelType*    m_CmpPelOrigin[c_NumberOfComponents]; //pel origin, pel access -> m_PelOrg[y*m_PelStride + x]
   
   int64       m_POC;
   int64       m_Timestamp;
@@ -85,11 +92,12 @@ public:
   //Base functions
   xPic                             ();
   xPic                             (int32 Width, int32 Height, int32 Margin, int32 BitDepth, eImgTp ImageType, eCrF ChromaFormat) { create(Width, Height, Margin, BitDepth, ImageType, ChromaFormat); }
+  xPic                             (int32V2 Size,              int32 Margin, int32 BitDepth, eImgTp ImageType, eCrF ChromaFormat) { create(Size, Margin, BitDepth, ImageType, ChromaFormat); }
   xPic                             (xPic* Pic) { create(Pic); }
   ~xPic                            () { destroy(); }
 
-  void        create               (int32V2 Size, int32 Margin, int32 BitDepth, eImgTp ImageType, eCrF ChromaFormat) {create(Size[0],Size[1],Margin, BitDepth,ImageType, ChromaFormat); };
   void        create               (int32 Width, int32 Height, int32 Margin, int32 BitDepth, eImgTp ImageType, eCrF ChromaFormat);
+  void        create               (int32V2 Size,              int32 Margin, int32 BitDepth, eImgTp ImageType, eCrF ChromaFormat) { create(Size.getX(), Size.getY(), Margin, BitDepth, ImageType, ChromaFormat); }
   void        create               (xPic* Pic) { create(Pic->getWidth(), Pic->getHeight(), Pic->getMargin(), Pic->getBitDepth(), Pic->getImageType(), Pic->getChromaFormat()); }
   void        destroy              ();
   void        duplicate            (xPic* Pic);
@@ -129,7 +137,7 @@ public:
 
   //Tool functions                 
   ePelType    getPelType           () const { return DeterminePelType<PelType>(); }
-  PelType     getMaxPelValue       () const { if constexpr (std::is_integral_v<PelType>) { return xBitDepth2MaxValue(m_BitDepth);} else { return (PelType)1.0; } }
+  PelType     getMaxPelValue       () const { if constexpr (std::is_integral_v<PelType>) { return (PelType)xBitDepth2MaxValue(m_BitDepth);} else { return (PelType)1.0; } }
   PelType     getMidPelValue       () const { if constexpr (std::is_integral_v<PelType>) { return ((PelType)1<<(m_BitDepth-1)); } else { return (PelType)0.5; } }
   PelType     getMinPelValue       () const { return (PelType)0; }
 
@@ -176,8 +184,8 @@ public:
   void        convertBitDepth      (xPic* Src) { convertBitDepth(Src, m_BitDepth); }
   
   //Crop & extend     
-  //void        crop                 (xPic* Src, int32 SrcSX, int32 SrcSY, int32 SrcEX, int32 SrcEY);
-  //void        extend               (xPic* Src, int32 SrcSX, int32 SrcSY, int32 SrcEX, int32 SrcEY, eCmpExtMode Mode);
+//void        crop                 (xPic* Src, int32 SrcSX, int32 SrcSY, int32 SrcEX, int32 SrcEY);
+//void        extend               (xPic* Src, int32 SrcSX, int32 SrcSY, int32 SrcEX, int32 SrcEY, eCmpExtMode Mode);
   void        extendMargin         (eCmpExtMode Mode);
   void        clearMargin          ();
   bool        getIsMarginExtended  () { return m_IsMarginExtended; }
@@ -198,6 +206,16 @@ public:
   //void        average              (xPic* Src0, xPic* Src1);
   //void        averageAndClip       (xPic* Src0, xPic* Src1);
   //void        clip                 (xPic* Src, int16 ClippingRangeLow, int16 ClippingRangeHigh);
+
+  //Distortion & PSNR      
+  uint64V4    calcDist             (xPic* Ref, eDistMetric DistMetric);
+  doubleV4    calcPSNR             (xPic* Ref);
+  uint64      calcDist             (xPic* Ref, eDistMetric DistMetric, eCmp CmpId);
+  double      calcPSNR             (xPic* Ref, eCmp CmpId);
+  uint64      calcWindowedDist     (xPic* Ref, int32 OriginX, int32 OriginY, int32 Width, int32 Height, eDistMetric DistMetric, eCmp CmpId);
+  double      calcWindowedPSNR     (xPic* Ref, int32 OriginX, int32 OriginY, int32 Width, int32 Height, eCmp CmpId);    
+  uint64      calcSAD              (xPic* Ref, eCmp CmpId);
+  uint64      calcSSD              (xPic* Ref, eCmp CmpId);
 
   //Load and store RAW         
   void        getRAW               (xFile& File);
@@ -319,12 +337,15 @@ extern template class xPicTank< int16>;
 template <typename PelType AVlib_xPicture_DEFAULT> class xPicI //interleaved picture
 {
 public:
-//typedef int16        PelType;
+  static const uint32 c_Log2NumberOfComponents = 2;
+  static const uint32 c_NumberOfComponents     = 4;
+
+  using   VecType = xVec4<PelType>;
+
   typedef PelType      T;
   typedef xMemMap2D<T> MemMap;
   typedef xPicITank<T> tCorespondingTank;
 
-  static const uint32 c_NumberOfComponents = 4;
 
 protected:
   //dimensions, margin, stride
@@ -354,6 +375,7 @@ public:
   ~xPicI                           () { destroy(); }
 
   void        create               (int32 Width, int32 Height, int32 Margin, int32 BitDepth, eImgTp ImageType);
+  void        create               (int32V2 Size, int32 Margin, int32 BitDepth, eImgTp ImageType) { create(Size.getX(), Size.getY(), Margin, BitDepth, ImageType); }
   void        create               (xPicI* Pic) { create(Pic->getWidth(), Pic->getHeight(), Pic->getMargin(), Pic->getBitDepth(), Pic->getImageType()); }
   void        destroy              ();
   void        duplicate            (xPicI* Pic);
@@ -362,6 +384,7 @@ public:
   void        copy                 (xPicI* Src);
   void        copyEx               (xPicI* Src, int32 DstX, int32 DstY, int32 SrcSX, int32 SrcSY, int32 SrcEX, int32 SrcEY);
   void        set                  (PelType Value);
+  void        set                  (VecType Value);
   void        set                  (PelType Value, eCmp CmpId);
 
   //Interfaces general                     
@@ -384,8 +407,8 @@ public:
 
   //Tool functions                 
   ePelType    getPelType           () { return DeterminePelType<PelType>(); }
-  PelType     getMaxPelValue       () { if constexpr (std::is_integral_v<PelType>) { return xBitDepth2MaxValue(m_BitDepth);} else { return (PelType)1.0; } }
-  PelType     getMidPelValue       () { if constexpr (std::is_integral_v<PelType>) { return ((PelType)1<<(m_BitDepth-1)); } else { return (PelType)0.5; } }
+  PelType     getMaxPelValue       () { if constexpr (std::is_integral_v<PelType>) { return (PelType)xBitDepth2MaxValue(m_BitDepth);} else { return (PelType)1.0; } }
+  PelType     getMidPelValue       () { if constexpr (std::is_integral_v<PelType>) { return (PelType)xBitDepth2MidValue(m_BitDepth); } else { return (PelType)0.5; } }
   PelType     getMinPelValue       () { return (PelType)0; }
 
   //Compatibility functions        
@@ -412,25 +435,71 @@ public:
   int32       getPelsInBuff        (                ) { return m_NumCmpPels*c_NumberOfComponents; }
   int32       getBuffSize          (                ) { return m_NumCmpPels*c_NumberOfComponents*sizeof(PelType); }
 
+  //Crop & extend                  
+  void        extendMargin         (eCmpExtMode Mode);
+  void        clearMargin          ();
+  bool        getIsMarginExtended  () const { return m_IsMarginExtended; }
+
   //Convertion
-  void        convertFromPlanar    (xPic<T>* Planar);
-  void        converrToPlanar      (xPic<T>* Planar);
+  void        rearrangeFromPlanar  (const xPic<T>* Planar);
+  void        rearrangeToPlanar    (      xPic<T>* Planar);
+
+  template <typename PlanarPelType> void rearrangeConvertFromPlanar(const xPic<PlanarPelType>* Planar);
+  template <typename PlanarPelType> void rearrangeConvertToPlanar  (      xPic<PlanarPelType>* Planar);
 
   //Access starting position of original picture 
   PelType*    getAddr              (                            ) { return m_PelOrigin;         }
+  const PelType* getAddr              (                            ) const { return m_PelOrigin;         }
   PelType*    getAddr              (                  eCmp CmpId) { return m_PelOrigin + CmpId; }
-  int32       getStride            (                            ) { return m_PelStride;         }
-  int32       getPitch             (                            ) { return c_NumberOfComponents;}
-  int32       getOffset            (int32V2 Position            ) { return Position.getY() * m_PelStride + Position.getX() * c_NumberOfComponents; }
+  const PelType* getAddr              (                  eCmp CmpId) const { return m_PelOrigin + CmpId; }
+  int32          getStride            (                            ) const { return m_PelStride;         }
+  int32          getPitch             (                            ) const { return c_NumberOfComponents;}
+  int32          getOffset            (int32V2 Position            ) const { return Position.getY() * m_PelStride + Position.getX() * c_NumberOfComponents; }
   PelType*    getAddr              (int32V2 Position, eCmp CmpId) { return getAddr(CmpId) + getOffset(Position); }
+  const PelType* getAddr              (int32V2 Position, eCmp CmpId) const { return getAddr(CmpId) + getOffset(Position); }
   PelType&    accessPel            (int32V2 Position, eCmp CmpId) { return *(getAddr(CmpId) + getOffset(Position)); }
   PelType&    accessPel            (int32   Offset  , eCmp CmpId) { return *(getAddr(CmpId) + Offset); }
+  const PelType& accessPel            (int32V2 Position, eCmp CmpId) const { return *(getAddr(CmpId) + getOffset(Position)); }
+  const PelType& accessPel            (int32   Offset  , eCmp CmpId) const { return *(getAddr(CmpId) + Offset); }
+
+  //Accessing as vector
+  VecType*       getAddrVec           (                            )       { return (VecType*)m_PelOrigin;                   }
+  const VecType* getAddrVec           (                            ) const { return (VecType*)m_PelOrigin;                   }
+  int32          getStrideVec         (                            ) const { return m_PelStride >> c_Log2NumberOfComponents; }
 
   //Access all pixel values (slow)
-  xVec3<T>    getPixelValues3      (                   int32V2 Position) { return xVec3<T>(m_PelOrigin + getOffset(Position)); }
-  xVec4<T>    getPixelValues4      (                   int32V2 Position) { return xVec4<T>(m_PelOrigin + getOffset(Position)); }
-  void        setPixelValues3      (const xVec3<T>& V, int32V2 Position) { V.get(m_PelOrigin + getOffset(Position)); }
+  xVec3<T>      getPixelValues3(                   int32V2 Position) const { return xVec3<T>(m_PelOrigin + getOffset(Position)); }
+  VecType       getPixelValues4(                   int32V2 Position) const { return xVec4<T>(m_PelOrigin + getOffset(Position)); }
+  void          setPixelValues3(const xVec3<T>& V, int32V2 Position)       { V.get(m_PelOrigin + getOffset(Position)); }
+  void          setPixelValues4(const xVec4<T>& V, int32V2 Position)       { V.get(m_PelOrigin + getOffset(Position)); }
 };
+
+//-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+template <typename PelType> template <typename PlanarPelType> void xPicI<PelType>::rearrangeConvertFromPlanar(const xPic<PlanarPelType>* Planar)
+{
+  //xAssert(Planar->isCompatible(m_Width, m_Height, m_BitDepth, m_ImageType, eCrF::CrF_444));
+
+  if (m_NumComponents == 4)
+  {
+    xPixelOps::ConvertSOA4toAOS4<PelType, PlanarPelType>(m_PelOrigin, Planar->getAddr(CMP_0), Planar->getAddr(CMP_1), Planar->getAddr(CMP_2), Planar->getAddr(CMP_3), m_PelStride, Planar->getStride(CMP_0), m_Width, m_Height);
+  }
+  else
+  {
+    xPixelOps::ConvertSOA3toAOS4<PelType, PlanarPelType>(m_PelOrigin, Planar->getAddr(CMP_0), Planar->getAddr(CMP_1), Planar->getAddr(CMP_2), (PlanarPelType)0, m_PelStride, Planar->getStride(CMP_0), m_Width, m_Height);
+  }
+}
+template <typename PelType> template <typename PlanarPelType> void xPicI<PelType>::rearrangeConvertToPlanar(xPic<PlanarPelType>* Planar)
+{
+  if (m_NumComponents == 4)
+  {
+    xPixelOps::ConvertAOS4toSOA4<PlanarPelType, PelType>(Planar->getAddr(CMP_0), Planar->getAddr(CMP_1), Planar->getAddr(CMP_2), Planar->getAddr(CMP_3), m_PelOrigin, Planar->getStride(CMP_0), m_PelStride, m_Width, m_Height);
+  }
+  else
+  {
+    xPixelOps::ConvertAOS4toSOA3<PlanarPelType, PelType>(Planar->getAddr(CMP_0), Planar->getAddr(CMP_1), Planar->getAddr(CMP_2), m_PelOrigin, Planar->getStride(CMP_0), m_PelStride, m_Width, m_Height);
+  }
+}
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 

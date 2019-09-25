@@ -71,14 +71,3 @@
 #else
 #defiene X_SYSTEM_UNKNOWN 0
 #endif
-
-
-//================================================================================================
-// Async section
-//================================================================================================
-#define X_ASYNC_NO_ASYNC        0
-#define X_ASYNC_ASIO_STANDALONE 1
-#define X_ASYNC_ASIO_FROM_BOOST 2
-#define X_ASYNC_NETWORKING_TS   3
-
-#define X_ASYNC_METHOD X_ASYNC_ASIO_STANDALONE

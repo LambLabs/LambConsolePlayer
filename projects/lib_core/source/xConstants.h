@@ -102,7 +102,7 @@ static const uint32 c_ParserBuffer     = 4194304; //4MB = 1024 pages
 #define MAX_LCU_SIZE            (1<<LOG2_MAX_LCU_SIZE)
 
 //minimal size of CU
-#define LOG2_MIN_CU_SIZE        2 
+#define LOG2_MIN_CU_SIZE        3 
 #define MIN_CU_SIZE             (1<<LOG2_MIN_CU_SIZE)
 
 #define MAX_PARTS_IN_LCU_SIDE   (MAX_LCU_SIZE/PARTITION_SIZE)

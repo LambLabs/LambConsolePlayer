@@ -30,10 +30,17 @@
 //============================================================\\
 
 #include "xCommon.h"
-
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+
+#ifdef max
+#undef max
+#endif
+
+#ifdef min
+#undef min
+#endif
 
 namespace AVlib {
 class xBarier

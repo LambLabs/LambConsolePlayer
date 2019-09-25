@@ -31,11 +31,11 @@
 #define AVlib_xPicture_IMPLEMENTATION
 #include "xPicture.h"
 #undef AVlib_xPicture_IMPLEMENTATION
-#include "xPixelOps.h"
 #include "xPacked.h"
 #include "xBMP.h"
 #include "xResample.h"
 #include "xColorSpace.h"
+//#include "xDistortion.h"
 #include <functional>
 
 namespace AVlib {
@@ -151,7 +151,7 @@ template <typename PelType> void xPic<PelType>::duplicate(xPic* Pic)
 }
 template <typename PelType> void xPic<PelType>::clear()
 {
-  for(int32 CmpId=0; CmpId < m_NumComponents; CmpId++) { memset(m_CmpPelBuffer[CmpId], 0, m_CmpNumPels[CmpId] * sizeof(int16)); }
+  for(int32 CmpId=0; CmpId < m_NumComponents; CmpId++) { memset(m_CmpPelBuffer[CmpId], 0, m_CmpNumPels[CmpId] * sizeof(PelType)); }
   m_POC              = NOT_VALID;  
   m_Timestamp        = NOT_VALID;  
   m_Name.clear();
@@ -370,7 +370,12 @@ template <typename PelType> void xPic<PelType>::rescaleD2Avg(xPic* Src)
 template <typename PelType> void xPic<PelType>::convertBitDepth(xPic* Src, int32 NewBitDepth)
 {
   xAssert(isSameSizeMargin(Src));
-
+  if constexpr(!std::is_integral_v<PelType>) 
+  {
+    copy(Src);
+  }
+  else
+  {
   int32 DeltaBitDepth = NewBitDepth - Src->m_BitDepth;
 
   if(DeltaBitDepth == 0) //no convertion
@@ -383,10 +388,11 @@ template <typename PelType> void xPic<PelType>::convertBitDepth(xPic* Src, int32
     {
       m_BitDepth = NewBitDepth;
     }
-    for(int32 CmpIdx=0; CmpIdx < m_NumComponents; CmpIdx++)
+      for(int32 CmpIdx = 0; CmpIdx < m_NumComponents; CmpIdx++)
     {
       xPixelOps::Shift(m_CmpPelBuffer[CmpIdx], Src->m_CmpPelBuffer[CmpIdx], m_CmpNumPels[CmpIdx], DeltaBitDepth);
-    }    
+      }
+    }
   }
 }
 
@@ -397,7 +403,7 @@ template <typename PelType> void xPic<PelType>::extendMargin(eCmpExtMode Mode)
 {
   switch(Mode)
   {
-    case eCmpExtMode::FillGrey:  for(int32 CmpId=0; CmpId<m_NumComponents; CmpId++) { xPixelOps::ExtendMarginSolid (getAddr((eCmp)CmpId), getStride((eCmp)CmpId), getWidth((eCmp)CmpId), getHeight((eCmp)CmpId), getMargin(), (PelType)(1<<(getBitDepth()-1))); } break;
+    case eCmpExtMode::FillGrey:  for(int32 CmpId=0; CmpId<m_NumComponents; CmpId++) { xPixelOps::ExtendMarginSolid (getAddr((eCmp)CmpId), getStride((eCmp)CmpId), getWidth((eCmp)CmpId), getHeight((eCmp)CmpId), getMargin(), getMidPelValue()); } break;
     case eCmpExtMode::EdgePixel: for(int32 CmpId=0; CmpId<m_NumComponents; CmpId++) { xPixelOps::ExtendMarginEdge  (getAddr((eCmp)CmpId), getStride((eCmp)CmpId), getWidth((eCmp)CmpId), getHeight((eCmp)CmpId), getMargin()); } break;
     case eCmpExtMode::Mirror:    for(int32 CmpId=0; CmpId<m_NumComponents; CmpId++) { xPixelOps::ExtendMarginMirror(getAddr((eCmp)CmpId), getStride((eCmp)CmpId), getWidth((eCmp)CmpId), getHeight((eCmp)CmpId), getMargin()); } break;
     case eCmpExtMode::Bayer:     for(int32 CmpId=0; CmpId<m_NumComponents; CmpId++) { xPixelOps::ExtendMarginBayer (getAddr((eCmp)CmpId), getStride((eCmp)CmpId), getWidth((eCmp)CmpId), getHeight((eCmp)CmpId), getMargin()); } break;
@@ -507,6 +513,76 @@ template <typename PelType> void xPic<PelType>::convertRGB2XYZ(xPic* Src, bool I
   {
     xColorSpace::convertRGB2XYZ(getAddr(CMP_0), getAddr(CMP_1), getAddr(CMP_2), Src->getAddr(CMP_R), Src->getAddr(CMP_G), Src->getAddr(CMP_B), getArea());
   }
+}
+
+//=============================================================================================================================================================================
+// Distortion & PSNR
+//=============================================================================================================================================================================
+template <typename PelType> uint64V4 xPic<PelType>::calcDist(xPic* Ref, eDistMetric DistMetric)
+{
+  xAssert(Ref!=nullptr && isCompatible(Ref));
+  uint64V4 Dist;
+  for(int32 CmpIdx=0; CmpIdx < m_NumComponents; CmpIdx++)
+  {
+    Dist[CmpIdx] = calcDist(Ref, DistMetric, (eCmp)CmpIdx); 
+  }
+  return Dist;
+}
+template <typename PelType> doubleV4 xPic<PelType>::calcPSNR(xPic* Ref)
+{
+  xAssert(Ref!=nullptr && isCompatible(Ref));
+  doubleV4 PSNR = { 0,0,0,0 };
+  for(int32 CmpIdx=0; CmpIdx < m_NumComponents; CmpIdx++)
+  {
+    eCmp CmpId = (eCmp)CmpIdx;
+    //uint64 SSD  = calcDist(Ref, eDistMetric::DIST_SSD, CmpId);
+    //PSNR[CmpIdx] = xDistortion::CalcPSNR(SSD, getArea(CmpId), m_BitDepth); 
+  }
+  return PSNR; 
+}
+template <typename PelType> uint64 xPic<PelType>::calcDist(xPic* Ref, eDistMetric DistMetric, eCmp CmpId)
+{
+  xAssert(Ref!=nullptr && isCompatible(Ref));
+  //return (uint64)xDistortion::CalcDist(Ref->getAddr(CmpId), getAddr(CmpId), Ref->getStride(CmpId), getStride(CmpId), getWidth(CmpId), getHeight(CmpId), DistMetric); 
+  return (uint64)0;
+}
+template <typename PelType> double xPic<PelType>::calcPSNR(xPic* Ref, eCmp CmpId)
+{
+  xAssert(Ref!=nullptr && isCompatible(Ref));
+  //uint64 SSD  = calcDist(Ref, eDistMetric::DIST_SSD, CmpId);
+  //double PSNR = xDistortion::CalcPSNR(SSD, getArea(CmpId), m_BitDepth); 
+  //return PSNR; 
+  return (uint64)0;
+}
+template <typename PelType> uint64 xPic<PelType>::calcWindowedDist(xPic* Ref, int32 OriginX, int32 OriginY, int32 Width, int32 Height, eDistMetric DistMetric, eCmp CmpId)
+{
+  xAssert(Ref!=nullptr && isCompatible(Ref));
+  PelType* RefPtr = Ref->getAddr(CmpId) + OriginY*Ref->getStride(CmpId) + OriginX;
+  PelType* OrgPtr =      getAddr(CmpId) + OriginY*     getStride(CmpId) + OriginX;
+  //return (uint64)xDistortion::CalcDist(RefPtr, OrgPtr, Ref->getStride(CmpId), getStride(CmpId), Width, Height, DistMetric);
+  return (uint64)0;
+}
+template <typename PelType> double xPic<PelType>::calcWindowedPSNR(xPic* Ref, int32 OriginX, int32 OriginY, int32 Width, int32 Height, eCmp CmpId)
+{
+  xAssert(Ref!=nullptr && isCompatible(Ref));
+  uint64 SSD = calcWindowedDist(Ref, OriginX, OriginY, Width, Height, DIST_SSD, CmpId);
+  //double PSNR = xDistortion::CalcPSNR(SSD, Width*Height, m_BitDepth); 
+  //return PSNR; 
+  return (uint64)0;
+}
+template <typename PelType> uint64 xPic<PelType>::calcSAD(xPic* Ref, eCmp CmpId)
+{
+  xAssert(Ref!=nullptr && isCompatible(Ref));
+  //if(m_Margin) { return (uint64)xDistortion::CalcSAD(Ref->getAddr(CmpId), getAddr(CmpId), Ref->getStride(CmpId), getStride(CmpId), getWidth(CmpId), getHeight(CmpId)); }
+  //else         { return (uint64)xDistortion::CalcSAD(Ref->getAddr(CmpId), getAddr(CmpId), getArea(CmpId)); }
+  return (uint64)0;
+}
+template <typename PelType> uint64 xPic<PelType>::calcSSD(xPic* Ref, eCmp CmpId)
+{
+  xAssert(Ref!=nullptr && isCompatible(Ref));
+  //if(m_Margin) { return (uint64)xDistortion::CalcSSD(Ref->getAddr(CmpId), getAddr(CmpId), Ref->getStride(CmpId), getStride(CmpId), getWidth(CmpId), getHeight(CmpId)); }
+  //else         { return (uint64)xDistortion::CalcSSD(Ref->getAddr(CmpId), getAddr(CmpId), getArea(CmpId)); }
+  return (uint64)0;
 }
 
 //=============================================================================================================================================================================
@@ -696,7 +772,7 @@ template <typename PelType> void xPicI<PelType>::duplicate(xPicI* Pic)
 }
 template <typename PelType> void xPicI<PelType>::clear()
 {
-  ::memset(m_PelBuffer, 0, m_NumCmpPels * c_NumberOfComponents * sizeof(int16));
+  ::memset(m_PelBuffer, 0, m_NumCmpPels * c_NumberOfComponents * sizeof(PelType));
   m_POC              = NOT_VALID;  
   m_Timestamp        = NOT_VALID;  
   m_Name.clear();
@@ -708,12 +784,12 @@ template <typename PelType> void xPicI<PelType>::copy(xPicI* Src)
   xAssert(isSameSize(Src) && isSameBitDepth(Src) && isSameType(Src));
   if(m_Margin == Src->m_Margin)
   {  
-    xPixelOps::Copy<PelType>(m_PelBuffer, Src->m_PelBuffer, m_NumCmpPels * c_NumberOfComponents);
+    xPixelOps::Copy<PelType>(m_PelBuffer, Src->m_PelBuffer, m_NumCmpPels << c_Log2NumberOfComponents);
     m_IsMarginExtended = Src->m_IsMarginExtended;;
   }
   else     
   { 
-    xPixelOps::Copy<PelType>(m_PelOrigin, Src->m_PelOrigin, m_PelStride, Src->m_PelStride, m_Width*c_NumberOfComponents, m_Height);
+    xPixelOps::Copy<PelType>(m_PelOrigin, Src->m_PelOrigin, m_PelStride, Src->m_PelStride, m_Width << c_Log2NumberOfComponents, m_Height);
     m_IsMarginExtended = false;
   }  
 }
@@ -725,7 +801,12 @@ template <typename PelType> void xPicI<PelType>::copyEx(xPicI* Src, int32 DstX, 
 }
 template <typename PelType> void xPicI<PelType>::set(PelType Value)
 {
-  xMemsetX<PelType>(m_PelBuffer, (PelType)Value, m_NumCmpPels * c_NumberOfComponents);
+  xMemsetX<PelType>(m_PelBuffer, (PelType)Value, m_NumCmpPels << c_Log2NumberOfComponents);
+  m_IsMarginExtended = true;
+}
+template <typename PelType> void xPicI<PelType>::set(VecType Value)
+{
+  xMemsetX<VecType>((VecType*)m_PelBuffer, Value, m_NumCmpPels);
   m_IsMarginExtended = true;
 }
 template <typename PelType> void xPicI<PelType>::set(PelType Value, eCmp CmpId)
@@ -772,30 +853,57 @@ template <typename PelType> bool xPicI<PelType>::swapBuffer(PelType*& Buffer)
 }
 
 //=============================================================================================================================================================================
+// xPlane -  Crop & extend
+//=============================================================================================================================================================================
+template <typename PelType> void xPicI<PelType>::extendMargin(eCmpExtMode Mode)
+{
+  if(getMargin() != 0)
+  {
+    switch(Mode)
+    {
+      case eCmpExtMode::FillGrey : xPixelOps::ExtendMarginSolid (getAddrVec(), getStrideVec(), getWidth(), getHeight(), getMargin(), VecType(getMidPelValue())); break;
+      case eCmpExtMode::EdgePixel: xPixelOps::ExtendMarginEdge  (getAddrVec(), getStrideVec(), getWidth(), getHeight(), getMargin()                           ); break;
+      case eCmpExtMode::Mirror   : xPixelOps::ExtendMarginMirror(getAddrVec(), getStrideVec(), getWidth(), getHeight(), getMargin()                           ); break;
+      case eCmpExtMode::Bayer    : xPixelOps::ExtendMarginBayer (getAddrVec(), getStrideVec(), getWidth(), getHeight(), getMargin()                           ); break;
+      default: xAssert(0); return; break;
+    }
+  }
+  m_IsMarginExtended = true;
+}
+template <typename PelType> void xPicI<PelType>::clearMargin()
+{ 
+  if(getMargin() != 0)
+  {
+    xPixelOps::ClearMargin(getAddrVec(), getStrideVec(), getWidth(), getHeight(), getMargin());
+  }
+  m_IsMarginExtended = false;
+}
+
+//=============================================================================================================================================================================
 // Convertion
 //=============================================================================================================================================================================
-template <typename PelType> void xPicI<PelType>::convertFromPlanar(xPic<PelType>* Planar)
+template <typename PelType> void xPicI<PelType>::rearrangeFromPlanar(const xPic<PelType>* Planar)
 {
   //xAssert(Planar->isCompatible(m_Width, m_Height, m_BitDepth, m_ImageType, eCrF::CrF_444));
 
   if(m_NumComponents == 4)
   {
-    xPixelOps::SOA4toAOS4(m_PelOrigin, Planar->getAddr(CMP_0), Planar->getAddr(CMP_1), Planar->getAddr(CMP_2), Planar->getAddr(CMP_3), m_PelStride, Planar->getStride(CMP_0), m_Width, m_Height);
+    xPixelOps::SOA4toAOS4<PelType>(m_PelOrigin, Planar->getAddr(CMP_0), Planar->getAddr(CMP_1), Planar->getAddr(CMP_2), Planar->getAddr(CMP_3), m_PelStride, Planar->getStride(CMP_0), m_Width, m_Height);
   }
   else
   {
-    xPixelOps::SOA3toAOS4(m_PelOrigin, Planar->getAddr(CMP_0), Planar->getAddr(CMP_1), Planar->getAddr(CMP_2), (PelType)0, m_PelStride, Planar->getStride(CMP_0), m_Width, m_Height);
+    xPixelOps::SOA3toAOS4<PelType>(m_PelOrigin, Planar->getAddr(CMP_0), Planar->getAddr(CMP_1), Planar->getAddr(CMP_2), (PelType)0, m_PelStride, Planar->getStride(CMP_0), m_Width, m_Height);
   }
 }
-template <typename PelType> void xPicI<PelType>::converrToPlanar(xPic<PelType>* Planar)
+template <typename PelType> void xPicI<PelType>::rearrangeToPlanar(xPic<PelType>* Planar)
 {
   if(m_NumComponents == 4)
   {
-    xPixelOps::AOS4toSOA4(Planar->getAddr(CMP_0), Planar->getAddr(CMP_1), Planar->getAddr(CMP_2), Planar->getAddr(CMP_3), m_PelOrigin, Planar->getStride(CMP_0), m_PelStride, m_Width, m_Height);
+    xPixelOps::AOS4toSOA4<PelType>(Planar->getAddr(CMP_0), Planar->getAddr(CMP_1), Planar->getAddr(CMP_2), Planar->getAddr(CMP_3), m_PelOrigin, Planar->getStride(CMP_0), m_PelStride, m_Width, m_Height);
   }
   else
   {
-    xPixelOps::AOS4toSOA3(Planar->getAddr(CMP_0), Planar->getAddr(CMP_1), Planar->getAddr(CMP_2), m_PelOrigin, Planar->getStride(CMP_0), m_PelStride, m_Width, m_Height);
+    xPixelOps::AOS4toSOA3<PelType>(Planar->getAddr(CMP_0), Planar->getAddr(CMP_1), Planar->getAddr(CMP_2), m_PelOrigin, Planar->getStride(CMP_0), m_PelStride, m_Width, m_Height);
   }
 }
 

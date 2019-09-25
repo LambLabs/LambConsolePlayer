@@ -32,6 +32,7 @@
 #include "xPixelOps.h"
 #include "xPicture.h"
 #include "xPlane.h"
+//#include "xDistortion.h"
 
 namespace AVlib {
 
@@ -39,7 +40,7 @@ namespace AVlib {
 
 xPacked::xPacked()
 {
-  for(int32 CmpIdx=0; CmpIdx<3; CmpIdx++)
+  for(int32 CmpIdx=0; CmpIdx<4; CmpIdx++)
   {
     m_Width       [CmpIdx] = NOT_VALID;
     m_Height      [CmpIdx] = NOT_VALID;
@@ -54,7 +55,6 @@ xPacked::xPacked()
 
   m_Buffer         = nullptr;
 
-  m_FourCC.clear();
   m_ImageType      = eImgTp::UNKNOWN;
   m_PackedType     = ePckTp::INVALID;
   m_ChromaFormat   = CrF_UNKNOWN;
@@ -71,7 +71,6 @@ void xPacked::create(int32 Width, int32 Height, std::string FourCC)
   eCmpO   ComponentOrder;
   if(determineParams(BitDepth, ImageType, PackedType, ChromaFormat, ComponentOrder, FourCC))
   {
-    m_FourCC = FourCC;
     create(Width, Height, BitDepth, ImageType, PackedType, ChromaFormat, ComponentOrder);
   }
   else
@@ -81,8 +80,6 @@ void xPacked::create(int32 Width, int32 Height, std::string FourCC)
 }
 void xPacked::create(int32 Width, int32 Height, int32 BitDepth, eImgTp ImageType, ePckTp PackedType, eCrF ChromaFormat, eCmpO ComponentOrder)
 {
-  if(m_FourCC=="") { m_FourCC = determineFourCC(BitDepth, ImageType, PackedType, ChromaFormat, ComponentOrder); }
-
   //componets sizes
   ::memset(m_Width,    0, sizeof(m_Width   ));
   ::memset(m_Height,   0, sizeof(m_Height  ));
@@ -108,8 +105,8 @@ void xPacked::create(int32 Width, int32 Height, int32 BitDepth, eImgTp ImageType
           m_BitDepth[CMP_CB] = m_BitDepth[CMP_CR] = BitDepth;
           break;
         case CrF_422:    
-          m_Width   [CMP_CB] = m_Width   [CMP_CR] = Width;
-          m_Height  [CMP_CB] = m_Height  [CMP_CR] = Height>>1;
+          m_Width   [CMP_CB] = m_Width   [CMP_CR] = Width>>1;
+          m_Height  [CMP_CB] = m_Height  [CMP_CR] = Height;
           m_BitDepth[CMP_CB] = m_BitDepth[CMP_CR] = BitDepth;
           break;
         case CrF_420:    
