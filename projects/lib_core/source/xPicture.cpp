@@ -181,7 +181,7 @@ template <typename PelType> void xPic<PelType>::copy(xPic* Src)
 }
 template <typename PelType> void xPic<PelType>::copyEx(xPic* Src, int32 DstX, int32 DstY, int32 SrcSX, int32 SrcSY, int32 SrcEX, int32 SrcEY)
 {
-  xAssert(Src!=nullptr && m_ChromaFormat != CrF_444);
+  xAssert(Src!=nullptr && m_ChromaFormat == CrF_444);
 
   for(int32 CmpIdx=0; CmpIdx < m_NumComponents; CmpIdx++)
   {

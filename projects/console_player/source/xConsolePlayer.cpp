@@ -63,6 +63,8 @@ F1     - Show help
 F2     - OSD on/off
 J      - Jump to frame
 Q      - Exit
++/-    - Zoom in/out
+A,S,D,W- Move zoom window
 Arrows - Next/previous frame
 )AVLIBRAWSTRING";
 
@@ -163,6 +165,26 @@ int32V2 xConsolePlayer::xCalcOutputSize()
   }
 
   return { OutWidth, OutHeight };
+}
+//=============================================================================================================================================================================
+void xConsolePlayer::xCheckCropSize()
+{
+  if (m_CropOrign.getX() + m_CropSize.getX() > m_InputSize.getX())
+  {
+    m_CropOrign.setX(m_InputSize.getX() - m_CropSize.getX());
+  }
+  if (m_CropOrign.getY() + m_CropSize.getY() > m_InputSize.getY())
+  {
+    m_CropOrign.setY(m_InputSize.getY() - m_CropSize.getY());
+  }
+  if (m_CropOrign.getX() < 0)
+  {
+    m_CropOrign.setX(0);
+  }
+  if (m_CropOrign.getY() < 0)
+  {
+    m_CropOrign.setY(0);
+  }
 }
 //=============================================================================================================================================================================
 void xConsolePlayer::xDisplayPicture(xPic<int16>* pic)
@@ -320,15 +342,29 @@ void xConsolePlayer::xReadFrame()
 //=============================================================================================================================================================================
 void xConsolePlayer::xRescaleFrame()
 {
+  if (m_ZoomFactor > 1)
+  {
+    m_PictureCropRGB->copyEx(m_PictureInRGB, 0, 0, m_CropOrign.getX(), m_CropOrign.getY(), m_CropOrign.getX()+m_CropSize.getX()-1, m_CropOrign.getY()+m_CropSize.getY()-1);
+  }
+  else
+  {
+    std::swap(m_PictureInRGB, m_PictureCropRGB);
+  }
+
   if (m_ResizeSteps > 1)
   {
-    m_PictureResizeRGBVector[0]->rescaleD2Avg(m_PictureInRGB);
+    m_PictureResizeRGBVector[0]->rescaleD2Avg(m_PictureCropRGB);
     for (int32 s = 1; s < m_ResizeSteps - 1; s++) m_PictureResizeRGBVector[s]->rescaleD2Avg(m_PictureResizeRGBVector[s - 1]);
     m_PictureOutRGB->rescaleBilinear(m_PictureResizeRGBVector[m_ResizeSteps - 2]);
   }
   else
   {
-    m_PictureOutRGB->rescaleBilinear(m_PictureInRGB);
+    m_PictureOutRGB->rescaleBilinear(m_PictureCropRGB);
+  }
+
+  if(!(m_ZoomFactor > 1))
+  {
+    std::swap(m_PictureInRGB, m_PictureCropRGB);
   }
 }
 //=============================================================================================================================================================================
@@ -381,6 +417,65 @@ void xConsolePlayer::xKeyEventProc(KEY_EVENT_RECORD ker)
       m_RefreshScreen = true;
     }
     break;
+    case 0x41://A
+    {
+      m_CropOrign -= {m_CropSize.getX() >> 3, 0};
+      xCheckCropSize();
+      xRescaleFrame();
+      m_RefreshScreen = true;
+    }
+    break;
+    case 0x44://D
+    {
+      m_CropOrign += {m_CropSize.getX() >> 3, 0};
+      xCheckCropSize();
+      xRescaleFrame();
+      m_RefreshScreen = true;
+    }
+    break;
+    case 0x57://W
+    {
+      m_CropOrign -= {0, m_CropSize.getY() >> 3};
+      xCheckCropSize();
+      xRescaleFrame();
+      m_RefreshScreen = true;
+    }
+    break;
+    case 0x53://S
+    {
+      m_CropOrign += {0, m_CropSize.getY() >> 3};
+      xCheckCropSize();
+      xRescaleFrame();
+      m_RefreshScreen = true;
+    }
+    break;
+    case VK_OEM_PLUS: //+187
+    {
+      m_ZoomFactor += 1;
+      m_CropOrign += m_CropSize >> 2;
+
+      if (m_ZoomFactor > 1) m_CropSize = m_InputSize >> (m_ZoomFactor-1);
+      else                  m_CropSize = m_InputSize;
+      init();
+      xRescaleFrame();
+      m_RefreshScreen = true;
+    }
+    break;
+    case VK_OEM_MINUS: //-188
+    {
+      if (m_ZoomFactor > 1) 
+      {
+        m_ZoomFactor -= 1;
+        m_CropOrign -= m_CropSize >> 1;
+      }
+      if (m_ZoomFactor > 1) m_CropSize = m_InputSize >> (m_ZoomFactor-1);
+      else                  m_CropSize = m_InputSize;
+      xCheckCropSize();
+      init();
+      xRescaleFrame();
+      m_RefreshScreen = true;
+    }
+    break;
     }
   }
 }
@@ -393,6 +488,8 @@ void xConsolePlayer::xKeyEventProc(int key)
 #define VK_F2 81
 #define VK_Q 113
 #define VK_J 106
+#define VK_OEM_PLUS 00
+#define VK_OEM_MINUS 00
 
   //printf("%d", key);
   //*
@@ -484,6 +581,8 @@ void xConsolePlayer::create(xCfgSection* Cfg)
   m_PictureInRGB = new xPic<int16>; m_PictureInRGB->create(Width, Height, 0, BitDepth, eImgTp::RGB, CrF_444);
 
   m_InputSize = { Width, Height };
+  m_CropSize = m_InputSize;
+  m_CropOrign = { 0, 0 };
 }
 //=============================================================================================================================================================================
 void xConsolePlayer::init()
@@ -501,12 +600,15 @@ void xConsolePlayer::init()
     if (PictureResizeRGB != nullptr) { PictureResizeRGB->destroy(); delete PictureResizeRGB; };
   }
 
-  m_ResizeSteps = xLog2((uint32)m_InputSize[0] / m_OutputSize[0]);
+  m_ResizeSteps = xLog2((uint32)m_CropSize[0] / m_OutputSize[0]);
   for (int32 i = 0; i < m_ResizeSteps - 1; i++)
   {
-    xPic<int16>* PictureResizeRGB = new xPic<int16>; PictureResizeRGB->create(m_InputSize >> (i + 1), 0, m_PictureInRGB->getBitDepth(), eImgTp::RGB, CrF_444);
+    xPic<int16>* PictureResizeRGB = new xPic<int16>; PictureResizeRGB->create(m_CropSize >> (i + 1), 0, m_PictureInRGB->getBitDepth(), eImgTp::RGB, CrF_444);
     m_PictureResizeRGBVector.push_back(PictureResizeRGB);
   }
+
+  if (m_PictureCropRGB != nullptr) { m_PictureCropRGB->destroy(); delete m_PictureCropRGB; };
+  m_PictureCropRGB = new xPic<int16>; m_PictureCropRGB->create(m_CropSize, 0, m_PictureInRGB->getBitDepth(), eImgTp::RGB, CrF_444);
 }
 //=============================================================================================================================================================================
 void xConsolePlayer::run()

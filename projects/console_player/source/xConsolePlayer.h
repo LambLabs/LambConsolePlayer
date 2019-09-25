@@ -49,13 +49,17 @@ protected:
   xPic<int16>* m_PictureIn = nullptr;
   xPic<int16>* m_PictureIn444 = nullptr;
   xPic<int16>* m_PictureInRGB = nullptr;
+  xPic<int16>* m_PictureCropRGB = nullptr;
   xPic<int16>* m_PictureOutRGB = nullptr;
   std::vector<xPic<int16>*> m_PictureResizeRGBVector;
 
+  int32 m_ZoomFactor = 1.0;
   int32 m_ResizeSteps;
 
   int32V2 m_ConsoleSize;
   int32V2 m_InputSize;
+  int32V2 m_CropSize; //Size of the image after cropping (for zoom purpose)
+  int32V2 m_CropOrign; //Origin of the image after cropping (for zoom purpose)
   int32V2 m_OutputSize;
 
   int32 m_FrameId;
@@ -71,6 +75,7 @@ protected:
   void xGetFrameFromUser();
   int32V2 xGetConsoleSize();
   int32V2 xCalcOutputSize();
+  void xCheckCropSize();
   void xReadFrame();
   void xRescaleFrame();
   void xHideCursor();
