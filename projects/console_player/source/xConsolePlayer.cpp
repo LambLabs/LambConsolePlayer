@@ -198,6 +198,12 @@ void xConsolePlayer::xDisplayPicture(xPic<int16>* pic)
     int32V2 PosLower = { x, y + 1 };
     int16V3 RGBUpper = pic->getPixelValues3(PosUpper);
     int16V3 RGBLower = pic->getPixelValues3(PosLower);
+    /*int16V3 RGBLower;
+    if (y + 1 < pic->getHeight())
+      RGBLower = pic->getPixelValues3(PosLower);
+    else
+      RGBLower = { 0,0,0 };//*/
+
     printf(ESC FOREGROUND_COLOR ESC BACKGROUND_COLOR, RGBUpper[0], RGBUpper[1], RGBUpper[2], RGBLower[0], RGBLower[1], RGBLower[2]);
     //printf("\xdc");
 #ifdef WIN32
@@ -252,6 +258,7 @@ void xConsolePlayer::xDisplayPicture(xPic<int16>* pic)
   //wprintf(L"\xe2\x96\x84");
   //printf("\xdc");
   printf(RESET_FORMATS);
+  fflush(stdout);
 }
 //=============================================================================================================================================================================
 void xConsolePlayer::xDisplayHelp()
@@ -371,9 +378,37 @@ void xConsolePlayer::xRescaleFrame()
 #ifdef WIN32
 void xConsolePlayer::xKeyEventProc(KEY_EVENT_RECORD ker)
 {
+#define VK_Q 0x51 
+#define VK_J 0x4A
+#define VK_A 0x41
+#define VK_S 0x53
+#define VK_D 0x44
+#define VK_W 0x57
+#else
+void xConsolePlayer::xKeyEventProc(int key)
+{
+#define VK_LEFT 68
+#define VK_RIGHT 67
+#define VK_F1 80
+#define VK_F2 81
+#define VK_Q 113
+#define VK_J 106
+#define VK_A 97
+#define VK_S 115
+#define VK_D 100
+#define VK_W 119
+#define VK_OEM_PLUS '='
+#define VK_OEM_MINUS '-'
+#endif
+  
+#ifdef WIN32
   if (ker.bKeyDown == true)
   {
     switch (ker.wVirtualKeyCode)
+#else
+  {
+    switch (key)
+#endif
     {
     case VK_RIGHT:
     {
@@ -405,19 +440,19 @@ void xConsolePlayer::xKeyEventProc(KEY_EVENT_RECORD ker)
       m_RefreshScreen = true;
     }
     break;
-    case 0x51: //Q
+    case VK_Q: //Q
     {
       m_Done = true;
     }
     break;
-    case 0x4A: //J
+    case VK_J: //J
     {
       //m_Done = true;
       xGetFrameFromUser();
       m_RefreshScreen = true;
     }
     break;
-    case 0x41://A
+    case VK_A://A
     {
       m_CropOrign -= {m_CropSize.getX() >> 3, 0};
       xCheckCropSize();
@@ -425,7 +460,7 @@ void xConsolePlayer::xKeyEventProc(KEY_EVENT_RECORD ker)
       m_RefreshScreen = true;
     }
     break;
-    case 0x44://D
+    case VK_D://D
     {
       m_CropOrign += {m_CropSize.getX() >> 3, 0};
       xCheckCropSize();
@@ -433,7 +468,7 @@ void xConsolePlayer::xKeyEventProc(KEY_EVENT_RECORD ker)
       m_RefreshScreen = true;
     }
     break;
-    case 0x57://W
+    case VK_W://W
     {
       m_CropOrign -= {0, m_CropSize.getY() >> 3};
       xCheckCropSize();
@@ -441,7 +476,7 @@ void xConsolePlayer::xKeyEventProc(KEY_EVENT_RECORD ker)
       m_RefreshScreen = true;
     }
     break;
-    case 0x53://S
+    case VK_S://S
     {
       m_CropOrign += {0, m_CropSize.getY() >> 3};
       xCheckCropSize();
@@ -479,66 +514,6 @@ void xConsolePlayer::xKeyEventProc(KEY_EVENT_RECORD ker)
     }
   }
 }
-#else
-void xConsolePlayer::xKeyEventProc(int key)
-{
-#define VK_LEFT 68
-#define VK_RIGHT 67
-#define VK_F1 80
-#define VK_F2 81
-#define VK_Q 113
-#define VK_J 106
-#define VK_OEM_PLUS 00
-#define VK_OEM_MINUS 00
-
-  //printf("%d", key);
-  //*
-  //if (ker.bKeyDown == true)
-  {
-    switch (key)
-    {
-    case VK_RIGHT: //->
-    {
-      m_FrameId = m_FrameId + 1;
-      if (m_FrameId == m_NumberOfFrames) m_FrameId = 0;
-      xReadFrame();
-      xRescaleFrame();
-    }
-    break;
-    case VK_LEFT://<-
-    {
-      m_FrameId = m_FrameId - 1;
-      if (m_FrameId < 0) m_FrameId = m_NumberOfFrames - 1;
-      xReadFrame();
-      xRescaleFrame();
-    }
-    break;
-    case VK_F1:
-    {
-      m_ShowHelp = !m_ShowHelp;
-    }
-    break;
-    case VK_F2:
-    {
-      m_ShowInfo = !m_ShowInfo;
-    }
-    break;
-    case VK_Q: //Q
-    {
-      m_Done = true;
-    }
-    break;
-    case VK_J: //J
-    {
-      //m_Done = true;
-      xGetFrameFromUser();
-    }
-    break;
-    }
-  }
-//*/
-}
-#endif
 //=============================================================================================================================================================================
 #ifdef WIN32
 void xConsolePlayer::xResizeEventProc(WINDOW_BUFFER_SIZE_RECORD wbsr)
@@ -678,6 +653,7 @@ void xConsolePlayer::run()
       //perror("read():");
       //exit(-1);
     }
+    //printf("%c", c);
     if (len==1) xKeyEventProc(c);
 #endif
   } //end of main loop
